@@ -107,3 +107,9 @@ body.mobile #hud{bottom:calc(4% + env(safe-area-inset-bottom))}
 body.mobile .btn{padding:.55em 1.4em .55em 1.7em}
 
 body.mobile #hint{color:rgba(255,255,255,.9);text-shadow:0 0 3px #000,0 0 2px #000,0 0 6px #000}
+
+/* 全画面ボタン(スマホ版) */
+#fsBtn{display:none;position:fixed;right:calc(14px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));z-index:55;padding:9px 18px;border:1px solid rgba(255,255,255,.75);background:rgba(0,0,0,.6);color:#fff;font-family:var(--font);font-size:13px;letter-spacing:.2em;border-radius:24px;cursor:pointer}
+body.mobile.fsOk:not(.isFs) #fsBtn{display:block}
+#rules .fshint{display:none;margin-top:1em;font-size:clamp(11px,1.7vw,13px);color:#888;letter-spacing:.08em}
+body.mobile:not(.fsOk) #rules .fshint{display:block}

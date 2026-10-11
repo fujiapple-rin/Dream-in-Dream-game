@@ -22,6 +22,7 @@
 <canvas id="gl"></canvas>
 <div id="rotate"><div>端末を横向きにしてください<br>(画面の向きのロックを解除)</div></div>
 <button id="bPause" aria-label="一時停止">Ⅱ</button>
+<button id="fsBtn">全画面</button>
 <div id="fade"></div>
 <div id="lights"></div>
 <button id="skipBtn">スキップ ▶▶</button>
@@ -62,6 +63,7 @@
     それを繰り返していれば、いつも朝になっている。
   </div>
   <div class="warn2">※ 精神的に重い描写を含みます。</div>
+  <div class="fshint">iPhoneで全画面にするには、共有メニューの「ホーム画面に追加」から開いてください。</div>
   <div class="s">クリックで続ける</div>
 </div>
 <div class="screen" id="over"><h2>GAME OVER</h2><div class="r" id="overText"></div><div class="note" id="overNote"></div><div class="row"><button class="btn" id="bRetry">もう一度</button><button class="btn" id="bTitle">タイトルへ</button></div></div>
@@ -72,16 +74,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="game.js"></script>
 <script>
-/* 最初のタップで全画面+横向き固定(対応している端末だけ) */
+/* 全画面: 最初のタップで試す + 「全画面」ボタン(対応端末のみ。iPhoneは非対応なので案内を出す) */
 (function(){
-  let tried = false;
-  addEventListener('pointerup', function(){
-    if(tried) return; tried = true;
+  const el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const upd = () => { document.body.classList.toggle('fsOk', !!rq); document.body.classList.toggle('isFs', isFs()); };
+  function go(){
     try{
-      const el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
-      if(rq){ const p = rq.call(el); if(p && p.then) p.then(function(){ try{ screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(function(){}); }catch(e){} }).catch(function(){}); }
+      if(!rq || isFs()) return;
+      const p = rq.call(el);
+      const lock = function(){ try{ screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(function(){}); }catch(e){} };
+      if(p && p.then) p.then(lock).catch(function(){}); else lock();
     }catch(e){}
-  });
+  }
+  let tried = false;
+  addEventListener('pointerup', function(){ if(tried) return; tried = true; go(); });
+  document.getElementById('fsBtn').addEventListener('click', function(e){ e.stopPropagation(); go(); });
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function(ev){ document.addEventListener(ev, upd); });
+  upd();
 })();
 </script>
 </body>

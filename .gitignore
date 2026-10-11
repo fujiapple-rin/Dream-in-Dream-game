@@ -1,0 +1,5 @@
+# 開発用(公開しない)
+debug.html
+.claude/
+*.zip
+*.bundle

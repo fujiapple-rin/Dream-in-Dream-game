@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Dream in Dream</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<!-- app-icons -->
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="夢だったら起きる。現実だったら眠る。ブラウザで遊べる、一人称の間違い探しホラー。">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Dream in Dream"><meta property="og:title" content="Dream in Dream"><meta property="og:description" content="夢だったら起きる。現実だったら眠る。"><meta property="og:image" content="https://fujiapple-rin.github.io/Dream-in-Dream/og.png"><meta name="twitter:card" content="summary_large_image">
+<!-- /app-icons -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="fade"></div>
+<div id="lights"></div>
+<button id="skipBtn">スキップ ▶▶</button>
+<div id="center"></div>
+<div id="sub"></div>
+<div id="hint">ドラッグで見渡す<br>ホイール / ズームボタンで拡大</div>
+<div id="tools"><button class="sbtn" id="bLight">ライト</button><button class="sbtn" id="bZoom">ズーム</button><button class="sbtn" id="bSound">音 ON</button></div>
+<div id="hud"><button class="btn" id="bWake">起きる</button><button class="btn" id="bSleep">眠る</button></div>
+
+<div id="phone">
+  <div class="ph">
+    <div class="bar"><span>docomo</span><span>82%</span></div>
+    <div class="ph-time">7:00</div>
+    <div class="ph-date">10月12日 月曜日</div>
+    <div class="card"><div class="app"><span>時計</span><span>今</span></div><div class="ttl">アラーム</div>7:00 停止しました</div>
+    <div class="card"><div class="app"><span>メモ</span><span>昨日</span></div>
+      <div class="ttl">10/12(月) 10:30</div>
+      こころのクリニック 精神科 初診<br>
+      ・保険証<br>・お薬手帳<br>
+      <br>
+      先生に話すこと<br>
+      ・夜中に何度も目が覚める<br>
+      ・夢と現実の区別がつかない<br>
+      ・起きても、まだ夢の中にいる気がする
+    </div>
+  </div>
+  <div class="tap">タップで続ける</div>
+</div>
+<div id="pause"><h2>PAUSE</h2><div class="row"><button class="btn" id="bResume">再開</button><button class="btn" id="bPauseTitle">タイトルへ</button></div><p>Esc で再開</p></div>
+<canvas id="grain" width="200" height="120"></canvas>
+
+<div class="screen on" id="title"><h1>Dream in Dream</h1><p>クリックしてはじめる</p></div>
+<div class="screen" id="rules">
+  <div class="txt">
+    最近、寝ている間にふと目覚めると、夢なのか、現実なのかわからなくなることがよくある。<br>
+    夢は現実とは少し違うようだ。<br>
+    夢だったら起きる。現実だったら眠る。<br>
+    それを繰り返していれば、いつも朝になっている。
+  </div>
+  <div class="warn2">※ 精神的に重い描写を含みます。</div>
+  <div class="s">クリックで続ける</div>
+</div>
+<div class="screen" id="over"><h2>GAME OVER</h2><div class="r" id="overText"></div><div class="note" id="overNote"></div><div class="row"><button class="btn" id="bRetry">もう一度</button><button class="btn" id="bTitle">タイトルへ</button></div></div>
+<div class="screen" id="end"><h1>Dream in Dream</h1><div class="e" id="endE">END</div><div class="note" id="endNote"></div><div class="row"><button class="btn" id="bEndTitle">タイトルへ</button></div></div>
+<div class="screen" id="news"><div class="paper"><div class="np-head nf">水凪新報　10月12日(月)　朝刊　社会面</div><h2 class="nf">アパート室内に男性の変死体</h2><h3 class="nf">事件・事故の両面で捜査</h3><p class="nf">　11日午後3時15分ごろ、水凪(みずなぎ)市潮見町3丁目のアパート「コーポ潮見」2階の一室で、男性がベッドの上で死亡しているのを、安否確認に訪れた管理会社の社員が発見し、110番通報した。</p><p class="nf">　水凪署によると、遺体は10代後半〜20代とみられ、死後数日が経過している。目立った外傷は確認されていない。</p><p class="nf">　この部屋には一人暮らしの男性が住んでおり、数日前から両親は連絡が取れなかったという。同署は遺体がこの部屋の住人である可能性が高いとみて身元の確認を急ぐとともに、事件と事故の両面で詳しい死因を調べている。</p></div></div>
+<div id="err"><div>Dream in Dream<br><br>3D描画ライブラリを読み込めませんでした。<br>インターネットに接続した状態で開き直してください。</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

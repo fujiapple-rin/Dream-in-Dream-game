@@ -2019,13 +2019,9 @@ async function caughtEnding(o){
   await sleep(500);
   S.hold = false;
   loopNoise('river', { type: 'lowpass', freq: 520, vol: .16, fadeIn: 2 });   // 暗闇の中、川の流れる音
-  await sleep(2600);
-  skippable = true;
-  await say('川のほとりで、男性が亡くなっているのが見つかった。', 4200);
-  skippable = false;
-  sirenStart();
-  await sleep(7000);
-  stopSnd('siren', 3); stopSnd('river', 3); await sleep(3200);
+  await sleep(1800);
+  await showNews(over);
+  stopSnd('river', 2);
   gameOver('川で、亡くなっていた。', '黒い人影に、追いつかれた。');
 }
 function setClutter(level){ R.clutter.forEach(c => { c.o.visible = c.lv <= level; c.o.position.copy(c.p0); c.o.rotation.y = c.r0; }); }
@@ -2269,7 +2265,7 @@ function cleanup(){
   $('lights').style.opacity = 0;
   $('sub').style.opacity = 0; $('center').style.opacity = 0; $('hint').style.opacity = 0;
   hud(false); tools(false); $('bWake').style.display = '';
-  ['over', 'end', 'title', 'rules'].forEach(id => show(id, false));
+  ['over', 'end', 'title', 'rules', 'news'].forEach(id => show(id, false));
   S.beeping = false; S.ticking = false; S.look = false; endDrag();
   CR.train.position.x = -160; CR.head.intensity = 0;
   resetView();
@@ -2828,6 +2824,23 @@ async function trueFinish(){
   await fade(0, 3200);
   tl.style.transition = ''; tl.style.opacity = ''; setFade(0, '#000');
 }
+/* 新聞記事(黒い人に捕まった時: 川に落ちていたと分かる) */
+async function showNews(onSkip){
+  S.mode = 'cut'; skippable = true;
+  setSkip(onSkip);
+  const news = $('news');
+  news.querySelectorAll('.nf').forEach(e => e.style.opacity = 0);
+  show('news', true);
+  setFade(0, '#000');
+  await sleep(1500);
+  const parts = [...news.querySelectorAll('.nf')];
+  const waits = [1800, 2200, 3600, 4200, 4800, 4200];
+  for(let i = 0; i < parts.length; i++){ parts[i].style.opacity = 1; await wait(waits[i] || 3000); }
+  await wait(3500);
+  skippable = false;
+  await fade(1, 2200, '#000');
+  await sleep(600);
+}
 async function finishMorning(){
   setSkip(null);
   S.mode = 'end';
@@ -2839,7 +2852,7 @@ async function finishMorning(){
 }
 
 function gameOver(reason, info, note){
-  setSkip(null); S.mistakes++;
+  setSkip(null); S.mistakes++; show('news', false);
   $('overNote').textContent = note || '';
   S.mode = 'over'; S.look = false; skippable = false;
   const keep = S.death === 'crossing' ? snd.siren : null;

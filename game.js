@@ -248,7 +248,7 @@ function birdsStart(){
   };
   f(); snd.birds = () => vclear(id);
 }
-function townSoundsStart(){ loopNoise('windTown', { type: 'bandpass', freq: 650, Q: .5, vol: .1, fadeIn: 3, lfo: .12, lfoDepth: 200 }); birdsStart(); }
+function townSoundsStart(){ loopNoise('windTown', { type: 'lowpass', freq: 380, Q: .4, vol: .04, fadeIn: 4, lfo: .07, lfoDepth: 80 }); birdsStart(); }
 function alarmStart(vol = .3){ every('alarm', 1000, () => { for(let i = 0; i < 4; i++) tone(1760, .07, vol, 'square', i * .13); }); }
 function breathingStart(){
   stopSnd('breath'); let iv = 1500, id = 0;
@@ -2807,7 +2807,11 @@ async function trueDischarge(){
     post.uniforms.uBright.value = .8 + 1.2 * sm(3.2, 1.0, z) - .95 * sm(1.0, -3.5, z);   // 外の光で、まぶしく
   });
   skippable = false;
-  await wait(2500);
+  await wait(900);
+  await lookTo(.14, .85, 2600);   // 外に出て、一度、空を見上げる
+  await wait(2400);
+  await lookTo(0, TOWN_END.pitch, 2200);
+  await wait(1200);
   await trueFinish();
 }
 async function trueFinish(){

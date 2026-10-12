@@ -1432,7 +1432,7 @@ glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; if(e.po
 glc.addEventListener('pointermove', e => {
   if(!dragging) return;
   const k = .0042 * (V.fov / 70);
-  V.yaw -= (e.clientX - lx) * k; V.pitch = clamp(V.pitch - (e.clientY - ly) * k, -1.45, 1.45);
+  V.yaw += (e.clientX - lx) * k; V.pitch = clamp(V.pitch - (e.clientY - ly) * k, -1.45, 1.45);
   lx = e.clientX; ly = e.clientY;
 });
 const endDrag = () => { dragging = false; glc.classList.remove('drag'); };

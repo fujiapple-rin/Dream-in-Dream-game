@@ -127,3 +127,7 @@ body.mobile:not(.fsOk) #rules .fshint{display:block}
 #end.scene .btn{color:#16283a;background:rgba(255,255,255,.75);border-color:#16283a}
 body.cleared #title{background:transparent;color:#16283a}
 body.cleared #title .warn{color:#2a3b4d}
+/* 説明画面の「クリア記録をリセット」(クリア後だけ表示) */
+#rules .reset{display:none;margin-top:1.8em;font-family:var(--font);font-size:clamp(11px,1.7vw,13px);color:#888;background:none;border:1px solid #555;padding:.5em 1.2em;letter-spacing:.15em;cursor:pointer;border-radius:0}
+body.cleared #rules .reset{display:inline-block}
+@media (hover:hover) and (pointer:fine){#rules .reset:hover{color:#ddd;border-color:#aaa}}

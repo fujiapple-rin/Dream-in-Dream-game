@@ -318,12 +318,12 @@ rt.depthTexture = new T3.DepthTexture(4, 4, T3.UnsignedIntType);
 const post = new T3.ShaderMaterial({
   uniforms: {
     tDiffuse: { value: rt.texture }, uTime: { value: 0 }, uRes: { value: new T3.Vector2(1, 1) }, uLow: { value: new T3.Vector2(1, 1) },
-    uNarrow: { value: 0 }, uBlur: { value: 0 }, uBright: { value: 1 }, uFilter: { value: 1 }, uRed: { value: 0 }, uVig: { value: 1 }
+    uNarrow: { value: 0 }, uBlur: { value: 0 }, uBright: { value: 1 }, uFilter: { value: 1 }, uRed: { value: 0 }, uVig: { value: 1 }, uGrit: { value: 0 }
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uRes; uniform vec2 uLow;
-    uniform float uNarrow; uniform float uBlur; uniform float uBright; uniform float uFilter; uniform float uRed; uniform float uVig;
+    uniform float uNarrow; uniform float uBlur; uniform float uBright; uniform float uFilter; uniform float uRed; uniform float uVig; uniform float uGrit;
     varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
@@ -340,19 +340,20 @@ const post = new T3.ShaderMaterial({
     void main(){
       vec2 lp = floor(vUv * uLow);
       vec2 luv = (lp + 0.5) / uLow;
+      if(uGrit > 0.0){ float jr = h(vec2(lp.y, floor(uTime * 5.0))); luv.x += (jr - 0.5) * 0.006 * uGrit + step(0.985, jr) * 0.03 * uGrit * (h(vec2(lp.y, 3.0)) - 0.5); }
       vec3 c = tap(luv);
       if(uFilter > 0.99){
         // composite-video colour bleed
         vec3 cl = tap(luv - vec2(1.0 / uLow.x, 0.0));
-        c = mix(c, cl, 0.28);
+        c = mix(c, cl, 0.28 + 0.22 * uGrit);
         c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 0.9);
         // light noise
-        c += (h(lp + floor(uTime * 8.0) * 17.3) - 0.5) * 0.028;
+        c += (h(lp + floor(uTime * 8.0) * 17.3) - 0.5) * (0.028 + 0.075 * uGrit);
         // 15-bit colour with ordered dithering
         c = floor(c * 31.0 + bayer4(lp)) / 31.0;
         // CRT scanlines + vignette
         float sl = fract(vUv.y * uLow.y);
-        c *= 0.8 + 0.2 * sin(sl * 3.14159);
+        c *= (0.8 - 0.1 * uGrit) + (0.2 + 0.1 * uGrit) * sin(sl * 3.14159);
         float d = distance(vUv, vec2(0.5));
         c *= mix(1.0, mix(0.55, 1.0, smoothstep(0.85, 0.32, d)), uVig);
       }
@@ -378,19 +379,19 @@ const post = new T3.ShaderMaterial({
         float r = mix(1.4, 0.0, uNarrow);
         c *= mix(1.0, smoothstep(r, r * 0.35, dd), clamp(uNarrow * 6.0, 0.0, 1.0));
       }
-      c *= uBright;
+      c *= uBright * (1.0 + 0.3 * uGrit);
       gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
     }`,
   depthTest: false, depthWrite: false
 });
 const postScene = new T3.Scene(), postCam = new T3.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 postScene.add(new T3.Mesh(new T3.PlaneGeometry(2, 2), post));
-const VIEW = { lowH: 240, crisp: false, prevFilter: 1 };
+const VIEW = { lowH: 240, crisp: false, grit: false, prevFilter: 1 };
 function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  const lh = VIEW.crisp ? h : VIEW.lowH > 0 ? VIEW.lowH : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
+  const lh = VIEW.crisp ? h : VIEW.lowH > 0 ? (VIEW.grit ? 168 : VIEW.lowH) : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
   rt.setSize(lw, lh); rt.depthTexture.image.width = lw; rt.depthTexture.image.height = lh;
   post.uniforms.uRes.value.set(w, h); post.uniforms.uLow.value.set(lw, lh);
 }
@@ -766,7 +767,7 @@ function addHead(g, y, skinM, hairM){   // y は首の付け根。頭はその�
   return head;
 }
 function makePerson(o){
-  const g = new T3.Group(), k = (o.h || 1.72) / 1.75;
+  const g = new T3.Group(), k = (o.h || 1.72) / 1.75, sl = o.slim || 1;   // sl: 体の横幅(細身は1より小さく)
   const M = c => o.black ? blackMat : lam(c);
   const skinM = M(o.skin || 0xd2a98a), hairM = M(o.hair || 0x1c1816), pantsM = M(o.bottom), topM = M(o.top);
   const coatM = o.coat ? M(o.coat) : null, sleeveM = coatM || topM;
@@ -774,18 +775,18 @@ function makePerson(o){
     limb(g, .088, .05, .86 * k, pantsM, .095 * s, .92 * k, 0);
     box(g, .09, .06, .26, M(0x1a1a1c), .095 * s, .03, .05);
   }
-  box(g, .31, .2, .21, pantsM, 0, .95 * k, 0);
-  const tor = new T3.Mesh(new T3.CylinderGeometry(.165, .14, .52 * k, 12), sleeveM); tor.scale.set(1.25, 1, .75); tor.position.y = 1.19 * k; g.add(tor);
-  { const sb = new T3.Mesh(new T3.CylinderGeometry(.1, .1, .46, 10), sleeveM); sb.rotation.z = Math.PI / 2; sb.scale.set(1, 1, 1.6); sb.position.y = 1.42 * k; g.add(sb); }   // 丸い肩
+  box(g, .31 * sl, .2, .21 * sl, pantsM, 0, .95 * k, 0);
+  const tor = new T3.Mesh(new T3.CylinderGeometry(.165, .14, .52 * k, 12), sleeveM); tor.scale.set(1.25 * sl, 1, .75 * sl); tor.position.y = 1.19 * k; g.add(tor);
+  { const sb = new T3.Mesh(new T3.CylinderGeometry(.1, .1, .46 * sl, 10), sleeveM); sb.rotation.z = Math.PI / 2; sb.scale.set(1, 1, 1.6 * sl); sb.position.y = 1.42 * k; g.add(sb); }   // 丸い肩
   if(coatM){
-    const c = new T3.Mesh(new T3.CylinderGeometry(.165, .27, .8 * k, 16), coatM); c.scale.set(1.22, 1, .72); c.position.y = 1.03 * k; g.add(c);   // 白衣・制服: 肩から裾へ広がる
+    const c = new T3.Mesh(new T3.CylinderGeometry(.165, .27, .8 * k, 16), coatM); c.scale.set(1.22 * sl, 1, .72 * sl); c.position.y = 1.03 * k; g.add(c);   // 白衣・制服: 肩から裾へ広がる
     box(g, .012, .62 * k, .01, M(0xb8b8b2), 0, 1.0 * k, .205 * .72 + .06);   // 前の合わせ目
     for(const s2 of [-1, 1]){ const lp = box(g, .07, .12, .02, coatM, .06 * s2, 1.46 * k, .1); lp.rotation.z = -.5 * s2; }   // 襟
   }
   else { box(g, .09, .28 * k, .012, M(0xf2f2ee), 0, 1.27 * k, .122); box(g, .035, .25 * k, .012, M(o.tie || 0x7a2a30), 0, 1.25 * k, .13); }   // シャツとネクタイ
   const nk = new T3.Mesh(new T3.CylinderGeometry(.045, .05, .1, 8), skinM); nk.position.y = 1.5 * k; g.add(nk);
   for(const s of [-1, 1]){   // 腕: 肩 → ひじ → 手
-    const sh = new T3.Group(); sh.position.set(.235 * s, 1.41 * k, 0); sh.rotation.z = .07 * s; g.add(sh);
+    const sh = new T3.Group(); sh.position.set(.235 * s * sl, 1.41 * k, 0); sh.rotation.z = .07 * s; g.add(sh);
     const ball = new T3.Mesh(new T3.SphereGeometry(.06, 8, 6), sleeveM); sh.add(ball);
     limb(sh, .05, .041, .3 * k, sleeveM, 0, 0, 0);
     const el = new T3.Group(); el.position.y = -.3 * k; el.rotation.x = -.22; sh.add(el);
@@ -1362,13 +1363,13 @@ const WD = {};
   for(const [x, y, z, c] of [[1.55, .84, 2.1, 0xf0a0b8], [1.5, .8, 2.06, 0xf6e27a], [1.6, .8, 2.14, 0xffffff], [1.52, .88, 2.14, 0xf0a0b8]]){ const f = new T3.Mesh(new T3.SphereGeometry(.05, 8, 6), lam(c)); f.position.set(x, y, z); procFl.add(f); }
   swapModel(procFl, 'pottedPlant', { h: .95 }, 1.55, 2.1, 0);
   // 光
-  s.add(new T3.AmbientLight(0x9aa6a0, .7));
+  s.add(new T3.AmbientLight(0xb4c0ba, 1.05));
   box(s, 1.2, .03, .5, basic(0xffffff), 0, H - .02, -.2);
-  const pl = new T3.PointLight(0xf4fff8, .55, 9, 1.2); pl.position.set(0, 2.15, -.2); s.add(pl);
+  const pl = new T3.PointLight(0xf4fff8, .95, 9, 1.2); pl.position.set(0, 2.15, -.2); s.add(pl);
   const cp = new T3.PointLight(0xeafff0, .7, 5); cp.position.set(.75, 2.2, -3.7); s.add(cp);
   const sun = new T3.DirectionalLight(0xfff0d8, .4); sun.position.set(6, 3, .5); s.add(sun);
   // 人(黒い人が立っていた場所に、先生・看護師・お見舞いの人がいる)
-  const nurse = { top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62, cap: true };
+  const nurse = { top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62, cap: true, slim: .74 };
   const at = (o, x, z, tx, tz) => { const g = makePerson(o); g.position.set(x, 0, z); g.lookAt(tx, 0, tz); s.add(g); return g; };
   WD.nurseCorner = at(Object.assign({}, nurse, { hair: 0x3a2c24 }), -1.42, -1.55, BED_EYE.x, BED_EYE.z);
   WD.doctor = at({ top: 0xdedede, bottom: 0x3a3d44, coat: 0xe6e6e2, hair: 0x232323, h: 1.76 }, .75, -3.0, BED_EYE.x, BED_EYE.z);
@@ -1984,7 +1985,7 @@ function shadowCaught(o){
   const y = V.yaw, p = V.pitch;
   start(async () => { V.yaw = y; V.pitch = p; await caughtEnding(o); });
 }
-/* 顔を見た瞬間、画面が激しく揺れて、セリフなしで新聞記事へ */
+/* 顔を見た瞬間、画面が激しく揺れて、セリフなしで暗転、ゲームオーバーへ */
 async function caughtEnding(o){
   S.mode = 'cut'; S.scene = 'room'; skippable = true;
   const over = () => start(async () => gameOver('夢から、覚めなかった。', '黒い人影に、追いつかれた。'));
@@ -1992,13 +1993,12 @@ async function caughtEnding(o){
   S.ticking = false; humTo(0, .05); S.hold = true; S.chaseK = 1; S.redK = 1;
   const am = aimAt(new T3.Vector3(o.position.x, 1.62, o.position.z));
   lookTo(am.yaw, am.pitch, 220);
-  V.shake = .07;   // 当たったときの効果音はなし(無音のまま揺れて、新聞へ)
+  V.shake = .07;   // 当たったときの効果音はなし(無音のまま揺れて、暗転)
   tween(1100, e => { V.shake = .07 + e * .08; });
   await sleep(1200);
   skippable = false;
   V.shake = 0; setFade(1, '#000');
   await sleep(500);
-  await showNews(over);
   gameOver('夢から、覚めなかった。', '黒い人影に、追いつかれた。');
 }
 function setClutter(level){ R.clutter.forEach(c => { c.o.visible = c.lv <= level; c.o.position.copy(c.p0); c.o.rotation.y = c.r0; }); }
@@ -2187,6 +2187,7 @@ function loop(now){
     T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
   }
   { const nr = S.scene === 'town' ? .4 : .1; if(camera.near !== nr){ camera.near = nr; camera.updateProjectionMatrix(); } }   // 遠くの地面のちらつき(Zファイティング)を防ぐ
+  { const grit = S.scene === 'ward' || S.scene === 'town'; if(grit !== VIEW.grit){ VIEW.grit = grit; resize(); } post.uniforms.uGrit.value = grit ? 1 : 0; }   // 真エンディングは、明るいまま、もっとがびがび
   post.uniforms.uVig.value = S.scene === 'town' ? 0 : 1;   // 四隅が黒くなる効果は、退院後はなし
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;
@@ -2242,7 +2243,7 @@ function cleanup(){
   $('lights').style.opacity = 0;
   $('sub').style.opacity = 0; $('center').style.opacity = 0; $('hint').style.opacity = 0;
   hud(false); tools(false); $('bWake').style.display = '';
-  ['over', 'end', 'title', 'rules', 'news'].forEach(id => show(id, false));
+  ['over', 'end', 'title', 'rules'].forEach(id => show(id, false));
   S.beeping = false; S.ticking = false; S.look = false; endDrag();
   CR.train.position.x = -160; CR.head.intensity = 0;
   resetView();
@@ -2679,8 +2680,8 @@ async function morning(){
   skippable = false;
   await finishMorning();
 }
-/* 真エンディング: 一度もミスしなかった人だけが見る新聞記事 */
-/* 真エンディング: 静かな黒い人 → 新聞記事 → 二つの言葉 → TRUE END */
+/* 真エンディング: 一度もミスしなかった人だけが見る(病室で目覚める) */
+/* 真エンディング: 静かな黒い人 → 病室で目覚める(先生・母・父の声) → 退院して街並み → TRUE END */
 async function trueEnding(){
   S.mode = 'cut'; S.scene = 'room'; skippable = true;
   setSkip(() => start(trueAfter));
@@ -2705,11 +2706,10 @@ async function trueEnding(){
 async function trueAfter(){
   post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0;
   setFade(1, '#000'); stopAllSnd();
-  await showNews(() => start(trueTail));
   await trueTail();
 }
 async function trueTail(){
-  show('news', false); setFade(1, '#000'); S.scene = 'room';
+  setFade(1, '#000'); S.scene = 'room';
   skippable = true;
   setSkip(() => start(trueWake));
   await say('先生「目を覚ましました」', 3000);
@@ -2753,7 +2753,7 @@ async function trueDischarge(){
   V.pos.set(0, 1.55, 5.2); V.yaw = 0; V.pitch = 0; V.roll = 0; V.tfov = V.fov = 62; V.breathe = 1;
   post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = .8;
   setFade(1, '#000');
-  await say('退院の日。', 2400);
+  await sleep(500);
   fade(0, 2200);
   for(let i = 0; i < 14; i++) step(.2, i * .7);
   const sm = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
@@ -2774,30 +2774,9 @@ async function trueFinish(){
   V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
   await finishMorning();
 }
-async function showNews(onSkip){
-  S.mode = 'cut'; skippable = true;
-  setSkip(onSkip);
-  const news = $('news');
-  news.querySelectorAll('.nf').forEach(e => e.style.opacity = 0);
-  show('news', true);
-  setFade(0, '#000');
-  await sleep(1500);
-  const parts = [...news.querySelectorAll('.nf')];
-  const waits = [1800, 2200, 3600, 4200, 4800, 4200];
-  for(let i = 0; i < parts.length; i++){ parts[i].style.opacity = 1; await wait(waits[i] || 3000); }
-  await wait(4500);
-  skippable = false;
-  await fade(1, 2200, '#000');
-  await sleep(600);
-}
-async function newsEnding(){
-  await showNews(() => start(async () => { S.trueEnd = true; await finishMorning(); }));
-  await finishMorning();
-}
 async function finishMorning(){
   setSkip(null);
   S.mode = 'end';
-  show('news', false);
   $('endE').textContent = S.trueEnd ? 'TRUE END' : 'END';
   $('end').classList.toggle('scene', !!S.trueEnd);
   show('end', true);
@@ -2806,7 +2785,7 @@ async function finishMorning(){
 }
 
 function gameOver(reason, info, note){
-  setSkip(null); S.mistakes++; show('news', false);
+  setSkip(null); S.mistakes++;
   $('overNote').textContent = note || '';
   S.mode = 'over'; S.look = false; skippable = false;
   const keep = S.death === 'crossing' ? snd.siren : null;
@@ -2831,6 +2810,13 @@ function townTitle(){   // 真エンディングをクリアした後は、タ�
 function toTitle(){ return start(async () => { if(isCleared()) townTitle(); else setFade(1, '#000'); S.mode = 'title'; show('title', true); }); }
 $('title').addEventListener('click', () => { audioInit(); show('title', false); show('rules', true); });
 $('rules').addEventListener('click', () => start(async () => { newGame(); await memorize(); }));
+$('bReset') && $('bReset').addEventListener('click', e => {   // クリア記録を消して、タイトルをクリア前に戻す
+  e.stopPropagation();
+  if(!confirm('クリアの記録を消して、タイトル画面をクリア前に戻します。よろしいですか?')) return;
+  try{ localStorage.removeItem(CLEAR_KEY); }catch(_){}
+  document.body.classList.remove('cleared'); S.scene = 'room'; S.townIdle = false; setFade(1, '#000');
+  document.querySelector('#rules .s').textContent = 'クリア記録をリセットしました。クリックで続ける';
+});
 $('bRetry').onclick = () => start(async () => { setFade(1, '#000'); newGame(true); await memorize(); });   // 同じ夜を、部屋を覚えるところからやり直す
 $('bTitle').onclick = toTitle;
 $('bResume').onclick = () => setPause(false);
@@ -2885,11 +2871,10 @@ function buildDebug(){
     <div>
       <button data-e="clear">クリア(朝7時)</button>
       <button data-e="hospital">病院(夢なのに眠る)</button>
-      <button data-e="news">真エンディング(新聞記事)</button>
       <button data-e="caught">黒い人に追いつかれる</button>
       <button data-e="town">退院(街並み)</button>
       <button data-e="wake">真エンディング(病室で目覚める)</button>
-      <button data-e="trueend">真エンディング(黒い人→新聞→言葉)</button>
+      <button data-e="trueend">真エンディング(黒い人→病室→退院→街並み)</button>
     </div>
     <div>${Object.entries(DEATHS).map(([k, v]) => `<button data-d="${k}">死亡: ${v.name}</button>`).join('')}<button data-d="random">死亡: ランダム</button></div>
     <div><button data-e="over">ゲームオーバー画面</button><button data-e="end">END画面</button></div>
@@ -2955,7 +2940,6 @@ function buildDebug(){
     if(en === 'wake') start(async () => { S.scene = 'room'; rebuild(); setFade(1, '#000'); await trueTail(); });
     if(en === 'trueend') start(async () => { S.night = NIGHTS; S.trueEnd = true; await trueEnding(); });
     if(en === 'caught') start(async () => { S.scene = 'room'; S.active = new Set(['shadowBed']); rebuild(); setFade(0); R.sBed.position.set(-1.0, 0, .9); await caughtEnding(R.sBed); });
-    if(en === 'news') start(async () => { S.trueEnd = true; await newsEnding(); });
     if(en === 'over') start(async () => { gameOver('これは、夢ではなかった。', '(デバッグ表示)'); });
     if(en === 'end') start(async () => { show('end', true); });
     if(d) start(async () => { S.scene = 'room'; S.active = new Set(); S.isDream = false; rebuild(); syncChecks(); setFade(0); setHour(S.hour); S.ticking = true; await panicEnding(d === 'random' ? null : d); });

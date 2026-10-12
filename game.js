@@ -2232,7 +2232,6 @@ function loop(now){
     R.flash.target.position.set(camera.position.x + dx * 5, camera.position.y + dy * 5, camera.position.z + dz * 5);
     R.flash.target.updateMatrixWorld();
   }
-  { const p = Math.pow((Math.sin(now / 1000 * 2.4) + 1) / 2, 1.5); blackMat.color.setRGB(.02 + .22 * p, .006, .01 + .03 * p); }   // 黒い人は、暗い赤へゆっくり色が脈打つ(闇に溶けないように)
   post.uniforms.uTime.value = (now / 1000) % 1000;
   renderer.setRenderTarget(rt); renderer.render(scene, camera);
   if(armUpdate(t)){ renderer.autoClear = false; renderer.clearDepth(); renderer.render(armScene, camera); renderer.autoClear = true; }

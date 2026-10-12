@@ -131,3 +131,6 @@ body.cleared #title .warn{color:#2a3b4d}
 #rules .reset{display:none;margin-top:1.8em;font-family:var(--font);font-size:clamp(11px,1.7vw,13px);color:#888;background:none;border:1px solid #555;padding:.5em 1.2em;letter-spacing:.15em;cursor:pointer;border-radius:0}
 body.cleared #rules .reset{display:inline-block}
 @media (hover:hover) and (pointer:fine){#rules .reset:hover{color:#ddd;border-color:#aaa}}
+
+/* 新聞記事の、場所の黒塗り */
+#news .bk{background:#111;color:#111;padding:0 .15em;user-select:none}

@@ -1426,15 +1426,19 @@ const S = {
   isDream: false, active: new Set(), day: false, roundStart: 0, clockBase: 3600, lastSec: null,
   ticking: false, firstHint: true, humLevel: .14, beeping: false, death: null
 };
-let dragging = false, lx = 0, ly = 0;
-glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; dragging = true; lx = e.clientX; ly = e.clientY; try{ glc.setPointerCapture(e.pointerId); }catch(_){} glc.classList.add('drag'); });
+let dragging = false, lx = 0, ly = 0, lockedOnce = false;
+glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; dragging = true; lx = e.clientX; ly = e.clientY; try{ glc.setPointerCapture(e.pointerId); }catch(_){} glc.classList.add('drag');
+  if(e.pointerType === 'mouse' && glc.requestPointerLock) try{ const r = glc.requestPointerLock(); if(r && r.catch) r.catch(() => {}); }catch(_){}   // 左ボタンを押している間は、カーソルを動かさない
+});
 glc.addEventListener('pointermove', e => {
   if(!dragging) return;
   const k = .0042 * (V.fov / 70);
-  V.yaw += (e.clientX - lx) * k; V.pitch = clamp(V.pitch + (e.clientY - ly) * k, -1.45, 1.45);
+  const mx = e.pointerType === 'mouse' ? e.movementX : e.clientX - lx, my = e.pointerType === 'mouse' ? e.movementY : e.clientY - ly;
+  V.yaw -= mx * k; V.pitch = clamp(V.pitch - my * k, -1.45, 1.45);
   lx = e.clientX; ly = e.clientY;
 });
-const endDrag = () => { dragging = false; glc.classList.remove('drag'); };
+const endDrag = () => { dragging = false; glc.classList.remove('drag'); if(document.pointerLockElement === glc) try{ document.exitPointerLock(); }catch(_){} };
+document.addEventListener('pointerlockchange', () => { if(dragging && !document.pointerLockElement && lockedOnce) endDrag(); lockedOnce = !!document.pointerLockElement; });
 glc.addEventListener('pointerup', endDrag); glc.addEventListener('pointercancel', endDrag);
 glc.addEventListener('wheel', e => { if(!S.look) return; e.preventDefault(); V.tfov = clamp(V.tfov + e.deltaY * .03, 20, 70); $('bZoom').classList.toggle('act', V.tfov < 60); }, { passive: false });
 const keys = {};

@@ -391,7 +391,7 @@ function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  const lh = VIEW.crisp ? Math.min(h, 350) : VIEW.lowH > 0 ? (VIEW.grit ? 168 : VIEW.lowH) : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
+  const lh = VIEW.crisp ? Math.min(h, 320) : VIEW.lowH > 0 ? (VIEW.grit ? 168 : VIEW.lowH) : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
   rt.setSize(lw, lh); rt.depthTexture.image.width = lw; rt.depthTexture.image.height = lh;
   post.uniforms.uRes.value.set(w, h); post.uniforms.uLow.value.set(lw, lh);
 }
@@ -2187,7 +2187,7 @@ function loop(now){
   }
 
   {   // 病室(目覚めた後)と街並みは、がびがびのフィルターなし・低解像度なし・頂点の吸着なしで、鮮明に
-    const crisp = S.scene === 'ward' || S.scene === 'town';   // 真エンディング(病室・街並み)は、がびがびを中くらいに(解像度350・弱フィルターを強めに)
+    const crisp = S.scene === 'ward' || S.scene === 'town';   // 真エンディング(病室・街並み)は、がびがびを中くらいに(解像度320・弱フィルターを強めに)
     if(crisp !== VIEW.crisp){
       VIEW.crisp = crisp;
       if(crisp){ VIEW.prevFilter = post.uniforms.uFilter.value; post.uniforms.uFilter.value = VIEW.prevFilter > 0 ? .95 : 0; setGrain(false); } else post.uniforms.uFilter.value = VIEW.prevFilter;

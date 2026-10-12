@@ -1386,26 +1386,26 @@ const WD = {};
 /* ============================================================
    TOWN(退院して、病院を出ると広がる、陽光きらめく街並み。クリア後のタイトルの背景にもなる)
    ============================================================ */
-const town = new T3.Scene(); town.fog = new T3.Fog(0xd6e8f2, 45, 135);
+const town = new T3.Scene(); town.fog = new T3.Fog(0xa9d3f4, 55, 150);
 const TW = { sparks: [], doors: [], open: 0 };
 (function buildTown(){
   CRISP_BUILD = true;
   const s = town, r = rng(21), GLOW = glowTex();
   // 空と太陽
   { const c = cv(8, 256), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
-    gr.addColorStop(0, '#4f9fe6'); gr.addColorStop(.3, '#8ec8f2'); gr.addColorStop(.5, '#fff2d4'); gr.addColorStop(1, '#fff2d4');
+    gr.addColorStop(0, '#2a78d6'); gr.addColorStop(.25, '#3f8fe4'); gr.addColorStop(.42, '#6fb4f0'); gr.addColorStop(.5, '#b5dcf8'); gr.addColorStop(1, '#b5dcf8');
     g.fillStyle = gr; g.fillRect(0, 0, 8, 256);
     const t = new T3.CanvasTexture(c); t.minFilter = t.magFilter = T3.LinearFilter;
     s.add(new T3.Mesh(new T3.SphereGeometry(125, 20, 14), new T3.MeshBasicMaterial({ map: t, side: T3.BackSide, fog: false }))); }
   const sunM = new T3.SpriteMaterial({ map: GLOW, color: 0xfff1b8, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false });
-  const sun = new T3.Sprite(sunM); sun.position.set(-30, 34, -95); sun.scale.set(80, 80, 1); s.add(sun);
-  const sunC = new T3.Sprite(new T3.SpriteMaterial({ map: GLOW, color: 0xffffff, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); sunC.position.copy(sun.position); sunC.scale.set(20, 20, 1); s.add(sunC);
+  const sun = new T3.Sprite(sunM); sun.position.set(-30, 34, -95); sun.scale.set(42, 42, 1); s.add(sun);
+  const sunC = new T3.Sprite(new T3.SpriteMaterial({ map: GLOW, color: 0xffffff, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); sunC.position.copy(sun.position); sunC.scale.set(11, 11, 1); s.add(sunC);
   // 地面・道・川・橋
-  plane(s, 90, 80, lam(0xdad4c6), 0, 0, -20, 0, -Math.PI / 2);
-  plane(s, 7, 46, lam(0xeee7d6), 0, .006, -8, 0, -Math.PI / 2);
-  for(const x of [-6.5, 6.5]) plane(s, 5, 46, lam(0x8cc07a), x, .004, -8, 0, -Math.PI / 2);
-  plane(s, 90, 9, lam(0x6d7078), 0, .01, -18, 0, -Math.PI / 2);
-  for(let i = -4; i <= 4; i++) box(s, .5, .02, 3.2, lam(0xf4f4f0), i * .9, .02, -18);
+  plane(s, 90, 80, lam(0xaaa391), 0, 0, -20, 0, -Math.PI / 2);
+  plane(s, 7, 46, lam(0xb8b09c), 0, .03, -8, 0, -Math.PI / 2);
+  for(const x of [-6.5, 6.5]) plane(s, 5, 46, lam(0x8cc07a), x, .03, -8, 0, -Math.PI / 2);
+  plane(s, 90, 9, lam(0x6d7078), 0, .06, -18, 0, -Math.PI / 2);
+  for(let i = -4; i <= 4; i++) box(s, .5, .02, 3.2, lam(0xf4f4f0), i * .9, .09, -18);
   plane(s, 90, 15, lam(0x6fb3dc, { emissive: 0x1b4a66 }), 0, -.45, -43, 0, -Math.PI / 2);
   for(const z of [-35.6, -50.4]) box(s, 90, 1.1, .8, lam(0xb8b2a4), 0, -.3, z);
   box(s, 7.4, .3, 15.4, lam(0xe0dccf), 0, -.05, -43);
@@ -1417,8 +1417,8 @@ const TW = { sparks: [], doors: [], open: 0 };
   const pastel = [0xf3d9c4, 0xdbe6c8, 0xc9dcee, 0xf1e4b6, 0xe9c9d3, 0xd5d0e8, 0xf6f0e4];
   const procBld = new T3.Group(), slots = []; s.add(procBld);
   const bld = (x, z, w, h, d, c, far) => { const t = winT.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4.5)); box(procBld, w, h, d, lam(c, { map: t }), x, h / 2, z); slots.push({ x, z, w, h, far }); };
-  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * 1.5, 6 + r() * 3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0], false);
-  for(let i = 0; i < 26; i++){ const x = -42 + i * 3.4 + r() * 2; bld(x, -62 - r() * 30, 5 + r() * 4, 14 + r() * 28, 6, pastel[(r() * pastel.length) | 0], true); }
+  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * .6, 5.2 + r() * 1.3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0], false);
+  for(const [zr, hmin] of [[-62, 12], [-78, 18], [-94, 24]]){ let x = -50 + r() * 4; while(x < 50){ const w = 5.5 + r() * 2.5; bld(x + w / 2, zr, w, hmin + r() * 12, 6, pastel[(r() * pastel.length) | 0], true); x += w + 1.8; } }
   {   // フリー素材のビルに差し替え(通り沿いは低めのビル、遠くの街並みは高層ビル)
     const near = 'abcdefghijklmn'.split('').map(k => 'building-' + k), far = 'abcde'.split('').map(k => 'building-skyscraper-' + k);
     Promise.all(slots.map((sl, i) => loadModel(sl.far ? far[i % far.length] : near[i % near.length]))).then(list => {
@@ -1453,7 +1453,7 @@ const TW = { sparks: [], doors: [], open: 0 };
   }
   // 病院の入口(カメラの後ろ: ロビー → ガラスの自動ドア → 車寄せ)
   const lw = lam(0x9aa6a2);
-  plane(s, 9, 9, lam(0xcfcfc6), 0, .002, 6, 0, -Math.PI / 2);
+  plane(s, 9, 9, lam(0xcfcfc6), 0, .06, 6, 0, -Math.PI / 2);
   plane(s, 9, 9, lam(0xdfe3e0), 0, 3.4, 6, 0, Math.PI / 2);
   plane(s, 9, 3.4, lw, -4.5, 1.7, 6, Math.PI / 2); plane(s, 9, 3.4, lw, 4.5, 1.7, 6, -Math.PI / 2);
   plane(s, 2.9, 3.4, lw, -3.05, 1.7, 1.5, 0); plane(s, 2.9, 3.4, lw, 3.05, 1.7, 1.5, 0); plane(s, 3.2, .8, lw, 0, 3.0, 1.5, 0);
@@ -1463,8 +1463,8 @@ const TW = { sparks: [], doors: [], open: 0 };
   box(s, 10, .25, 5, lam(0xf2f2ee), 0, 3.5, -1.0); for(const x of [-4.3, 4.3]) cyl(s, .18, .18, 3.5, lam(0xe8e8e2), x, 1.75, -3, 10);
   box(s, 2.4, .5, .5, lam(0x8b6f55), -3, .25, 8); box(s, .8, 1.2, .8, lam(0x5a8a5a), 3.2, .6, 8.5);
   // 光(日なた)
-  s.add(new T3.AmbientLight(0xdfe9ff, .9));
-  const dl = new T3.DirectionalLight(0xfff0cc, .9); dl.position.set(12, 30, 30); s.add(dl);
+  s.add(new T3.AmbientLight(0xdfe9ff, .72));
+  const dl = new T3.DirectionalLight(0xfff0cc, .62); dl.position.set(12, 30, 30); s.add(dl);
   // きらめき(空気中の光の粒と、川面の反射)
   for(let i = 0; i < 120; i++){
     const m = new T3.SpriteMaterial({ map: GLOW, color: 0xfff2c0, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0 });
@@ -2192,6 +2192,7 @@ function loop(now){
     }
     T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
   }
+  { const nr = S.scene === 'town' ? .4 : .1; if(camera.near !== nr){ camera.near = nr; camera.updateProjectionMatrix(); } }   // 遠くの地面のちらつき(Zファイティング)を防ぐ
   post.uniforms.uVig.value = S.scene === 'town' ? 0 : 1;   // 四隅が黒くなる効果は、退院後はなし
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;

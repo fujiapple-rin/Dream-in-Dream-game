@@ -365,7 +365,7 @@ const post = new T3.ShaderMaterial({
         float sl = fract(vUv.y * uRes.y / 3.0);
         c *= 1.0 - 0.09 * uFilter * (1.0 - sin(sl * 3.14159));
         float d = distance(vUv, vec2(0.5));
-        c *= mix(1.0 - 0.3 * uFilter, 1.0, smoothstep(0.9, 0.3, d));
+        c *= mix(1.0, mix(1.0 - 0.3 * uFilter, 1.0, smoothstep(0.9, 0.3, d)), uVig);
       }
       if(uRed > 0.0){
         float dr = distance(vUv, vec2(0.5));
@@ -2187,7 +2187,7 @@ function loop(now){
   }
 
   {   // 病室(目覚めた後)と街並みは、がびがびのフィルターなし・低解像度なし・頂点の吸着なしで、鮮明に
-    const crisp = false;   // フィルター(がびがび)は、病室でも街並みでも、元のままつけておく
+    const crisp = S.scene === 'ward' || S.scene === 'town';   // 真エンディング(病室・街並み)は、弱めのがびがび(画面いっぱいの解像度)
     if(crisp !== VIEW.crisp){
       VIEW.crisp = crisp;
       if(crisp){ VIEW.prevFilter = post.uniforms.uFilter.value; post.uniforms.uFilter.value = VIEW.prevFilter > 0 ? .6 : 0; setGrain(false); } else post.uniforms.uFilter.value = VIEW.prevFilter;
@@ -2196,7 +2196,7 @@ function loop(now){
     T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
   }
   { const nr = S.scene === 'town' ? .4 : .1; if(camera.near !== nr){ camera.near = nr; camera.updateProjectionMatrix(); } }   // 遠くの地面のちらつき(Zファイティング)を防ぐ
-  { const grit = S.scene === 'town'; if(grit !== VIEW.grit){ VIEW.grit = grit; resize(); } post.uniforms.uGrit.value = grit ? 1 : 0; }   // 強いがびがびは、退院後の街並みだけ(病室は元のフィルター)
+  { const grit = false; if(grit !== VIEW.grit){ VIEW.grit = grit; resize(); } post.uniforms.uGrit.value = grit ? 1 : 0; }   // 強いがびがびは、退院後の街並みだけ(病室は元のフィルター)
   post.uniforms.uVig.value = S.scene === 'town' ? 0 : 1;   // 四隅が黒くなる効果は、退院後はなし
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;

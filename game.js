@@ -1321,7 +1321,7 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, fl: 0, tf: null, scr: null
     const thenar = new T3.Mesh(new T3.SphereGeometry(.022, 8, 6), skin); thenar.scale.set(1, .8, 1.5); thenar.position.set(-s * .024, -.005, -.04); arm.add(thenar);
     // 持ち物の置き場(手のひら側 = -y)
     const hold = new T3.Group(); hold.position.set(0, -.016, -.07); arm.add(hold);
-    return { group: arm, fingers, thumb: [t1, t2], thumbGrp: th, hold, side: s };
+    return { group: arm, fingers, thumb: [t1, t2], hold, side: s };
   }
   const L_ = makeArm(-1), R_ = makeArm(1);
   armRoot.add(L_.group, R_.group);
@@ -1387,7 +1387,6 @@ function armUpdate(t){
       pos = pos.map((v, i) => v + (sp[i] - v) * w); rot = rot.map((v, i) => v + (sr[i] - v) * w); curl += (.42 - curl) * w;
     }
     const hand = s === 1 && tool && r > 0;
-    let tw = 0;   // スマホを持っている間の、親指の「画面に乗せる」度合い
     if(hand){
       let tp, tr, tc;
       if(tool === 'phone'){ tp = [.14, -.15 + .03 * (1 - r), -.40]; tr = [.95, .38, Math.PI]; tc = .3; }   // 指は軽く曲げるだけ(深く曲げると画面を突き抜ける)
@@ -1398,7 +1397,6 @@ function armUpdate(t){
         if(ARM.fl < .45){ tp = dP; tr = dR; tc = .3; w = sm_(ARM.fl / .45); }
         else { pos = dP.slice(); rot = dR.slice(); curl = .3; w = sm_((ARM.fl - .45) / .55); }
       }
-      if(tool === 'phone') tw = (fm && wantF && ARM.fl < .45) ? 0 : w;
       pos = pos.map((v, i) => v + (tp[i] - v) * w); rot = rot.map((v, i) => v + (tr[i] - v) * w); curl += (tc - curl) * w;
     }
     g.position.set(pos[0], pos[1] + sway, pos[2]); g.rotation.set(rot[0], rot[1], rot[2]);
@@ -1408,12 +1406,6 @@ function armUpdate(t){
       f.joints[0].rotation.x = -c * .85; f.joints[1].rotation.x = -c * 1.1; f.joints[2].rotation.x = -c * .7;
     });
     a.thumb[0].rotation.x = -curl * .25 - .05; a.thumb[1].rotation.x = -curl * .45;
-    {   // 親指だけ、スマホの画面の縁に乗せる(tw=0 で通常の位置)
-      const th = a.thumbGrp, m = (v, to) => v + (to - v) * tw;
-      th.position.set(m(-s * .034, s * .022), m(-.007, -.09), m(-.03, -.04));
-      th.rotation.set(m(-.12, .05), m(s * .55, s * .1), m(-s * .45, -s * .1));
-      a.thumb[0].rotation.x = m(a.thumb[0].rotation.x, -.1); a.thumb[1].rotation.x = m(a.thumb[1].rotation.x, -.12);
-    }
   }
   ARM.phone.visible = tool === 'phone' && r > .05 && !(fm && wantF && ARM.fl < .45);
   ARM.scr.material.color.setHex(S.flashK > .5 ? 0xe8eef8 : 0x56687c);

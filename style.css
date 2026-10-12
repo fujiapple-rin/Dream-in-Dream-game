@@ -13,7 +13,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#ddd;font
 #hud{position:fixed;left:0;right:0;bottom:5%;display:flex;justify-content:center;gap:clamp(16px,7vw,72px);z-index:8;opacity:0;pointer-events:none;transition:opacity .5s}
 #hud.on{opacity:1;pointer-events:auto}
 .btn{font-family:var(--font);font-size:clamp(17px,2.5vw,21px);color:#e8e8e8;background:rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.7);padding:.5em 1.5em .5em 1.8em;letter-spacing:.3em;cursor:pointer;border-radius:0}
-.btn:hover,.btn:focus-visible{background:rgba(255,255,255,.92);color:#000;outline:none}
+.btn:focus-visible{background:rgba(255,255,255,.92);color:#000;outline:none}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:rgba(255,255,255,.92);color:#000}}
 #tools{position:fixed;top:12px;right:12px;display:flex;gap:8px;z-index:8;opacity:0;pointer-events:none;transition:opacity .5s}
 #tools.on{opacity:1;pointer-events:auto}
 .sbtn{font-family:var(--font);font-size:13px;color:#ddd;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.5);padding:.35em .8em;cursor:pointer;border-radius:0}
@@ -36,7 +37,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#ddd;font
 #end{background:#fff;color:#000}
 #end .e{margin-top:1.2em;letter-spacing:.6em;font-size:clamp(14px,2.2vw,18px)}
 #end .btn{color:#000;background:#fff;border-color:#000}
-#end .btn:hover,#end .btn:focus-visible{background:#000;color:#fff}
+#end .btn:focus-visible{background:#000;color:#fff}
+@media (hover:hover) and (pointer:fine){#end .btn:hover{background:#000;color:#fff}}
 #phone{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:translateY(50px);transition:opacity .8s,transform .8s}
 #phone.on{opacity:1;transform:none;pointer-events:auto;cursor:pointer}
 .ph{height:min(600px,82vh);aspect-ratio:9/19;max-width:88vw;background:linear-gradient(170deg,#202a38,#0e1118 70%);border:9px solid #0b0b0b;border-radius:30px;padding:9% 6% 0;color:#e8e8e8;box-shadow:0 0 0 2px #2c2c2c,0 20px 60px rgba(0,0,0,.6);position:relative;overflow:hidden;filter:saturate(.8) contrast(1.05)}
@@ -69,7 +71,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#ddd;font
 /* ---------- skip ---------- */
 #skipBtn{position:fixed;top:12px;right:12px;z-index:25;display:none;font-family:var(--font);font-size:14px;letter-spacing:.15em;color:#ddd;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.6);padding:.4em 1em;cursor:pointer;border-radius:0}
 #skipBtn.on{display:block}
-#skipBtn:hover,#skipBtn:focus-visible{background:rgba(255,255,255,.9);color:#000;outline:none}
+#skipBtn:focus-visible{background:rgba(255,255,255,.9);color:#000;outline:none}
+@media (hover:hover) and (pointer:fine){#skipBtn:hover{background:rgba(255,255,255,.9);color:#000}}
 
 /* ---------- pause ---------- */
 #pause{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.78);color:#ddd;text-align:center}

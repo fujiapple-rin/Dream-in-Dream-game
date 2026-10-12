@@ -700,6 +700,10 @@ const lam = (color, o = {}) => new T3.MeshLambertMaterial(Object.assign({ color 
 const basic = (color, o = {}) => new T3.MeshBasicMaterial(Object.assign({ color }, o));
 const blackMat = basic(0x030303);
 function box(parent, w, h, d, m, x, y, z){ const me = new T3.Mesh(new T3.BoxGeometry(w, h, d), m); me.position.set(x, y, z); parent.add(me); return me; }
+function tubeBetween(parent, a, b, r, m){   // 2点を結ぶ細い管(点滴のチューブ用)
+  const d = new T3.Vector3().subVectors(b, a), len = d.length(), me = new T3.Mesh(new T3.CylinderGeometry(r, r, len, 5), m);
+  me.position.copy(a).addScaledVector(d, .5); me.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), d.normalize()); parent.add(me); return me;
+}
 function cyl(parent, rt_, rb, h, m, x, y, z, seg = 8){ const me = new T3.Mesh(new T3.CylinderGeometry(rt_, rb, h, seg), m); me.position.set(x, y, z); parent.add(me); return me; }
 function plane(parent, w, h, m, x, y, z, ry = 0, rx = 0){
   const big = Math.max(w, h) >= 1, sw = big ? Math.max(1, Math.min(64, Math.ceil(w / .5))) : 1, sh = big ? Math.max(1, Math.min(32, Math.ceil(h / .5))) : 1;
@@ -958,6 +962,28 @@ const BED_EYE = new T3.Vector3(-1.28, 1.18, 1.45);
   R.sWin = makePerson({ black: true, h: 1.74 }); R.sWin.position.set(2.32, 0, .62); R.sWin.lookAt(-1, 0, .62); room.add(R.sWin);
   // 天井の電気に、仰向けでなく「うつ伏せ」で張り付いている黒い人(顔は下=部屋側を向く)
   R.sCeil = makePerson({ black: true, h: 1.7 }); R.sCeil.rotation.x = Math.PI / 2; R.sCeil.position.set(0, H - .22, -1.45); room.add(R.sCeil);
+  // ---- 追加: 病室の記憶(本当は病院のベッドで寝ているから、夢の部屋に病室のものがにじみ出る) ----
+  R.sFam = [[-.52, .75, 1.74], [-.38, 1.25, 1.6], [-.56, 1.72, 1.72]].map(([x, z, h]) => {   // お見舞いの家族3人 = 黒い影
+    const o = makePerson({ black: true, h }); o.position.set(x, 0, z); o.lookAt(BED_EYE.x, 0, BED_EYE.z); o.userData.head.rotation.x = .38; o.visible = false; room.add(o); return o; });
+  const wardMetal = lam(0xb4babd);
+  R.iv = new T3.Group(); R.iv.position.set(-.68, 0, .62); R.iv.visible = false; room.add(R.iv);   // 点滴スタンド
+  cyl(R.iv, .012, .012, 1.9, wardMetal, 0, .95, 0, 6);
+  box(R.iv, .5, .025, .03, wardMetal, 0, .03, 0); box(R.iv, .03, .025, .5, wardMetal, 0, .03, 0); box(R.iv, .3, .02, .02, wardMetal, 0, 1.88, 0);
+  for(const x of [-.13, .13]) box(R.iv, .1, .17, .028, basic(0xcfe0e0, { transparent: true, opacity: .75 }), x, 1.74, 0);
+  tubeBetween(R.iv, new T3.Vector3(0, 1.64, 0), new T3.Vector3(-.27, .66, .28), .005, basic(0xdfe9e6));
+  R.sSyr = makePerson({ black: true, h: 1.72 }); R.sSyr.position.set(-.58, 0, 1.72); R.sSyr.lookAt(BED_EYE.x, 0, 2.2); R.sSyr.userData.head.rotation.x = .3; R.sSyr.visible = false; room.add(R.sSyr);
+  {   // 手に持った注射器(黒い人の中で、ここだけ白く浮かぶ)
+    const sg = new T3.Group(); sg.position.set(.24, 1.0, .2); sg.rotation.x = .5; R.sSyr.add(sg);
+    const sx = (m, r, len, z) => { const c = cyl(sg, r, r, len, m, 0, 0, z, 8); c.rotation.x = Math.PI / 2; return c; };
+    sx(basic(0xe4ecee), .02, .17, 0); sx(basic(0x9fe0d0), .014, .13, 0); sx(basic(0xd8dcde), .004, .12, .14); sx(basic(0xd8dcde), .03, .005, -.09);
+  }
+  R.rails = new T3.Group(); R.rails.visible = false; room.add(R.rails);   // ベッドの柵
+  for(const x of [-.745, -1.775]){ box(R.rails, .03, .03, 1.5, wardMetal, x, .98, 1.2); box(R.rails, .03, .03, 1.5, wardMetal, x, .76, 1.2); for(let i = 0; i < 6; i++) box(R.rails, .025, .38, .025, wardMetal, x, .8, .5 + i * .28); }
+  R.syr = [[1.15, 1.9], [1.6, 1.25], [1.35, .5], [1.95, 1.6], [1.05, 1.2], [1.75, 2.15], [1.3, 1.65], [1.85, .7]].map(([y, z], i) => {   // 壁から突き出る注射器
+    const g = new T3.Group(); g.position.set(-W + .01, y, z); g.rotation.set((i % 3 - 1) * .12, (i % 2) * .15 - .07, (i % 4 - 1.5) * .1); g.visible = false;
+    const ax = (m, r, len, x) => { const c = cyl(g, r, r, len, m, x, 0, 0, 8); c.rotation.z = Math.PI / 2; return c; };
+    ax(lam(0xe8eef0), .017, .15, .1); ax(lam(0x8fd8c8), .0125, .12, .1); ax(wardMetal, .0035, .12, .235); ax(wardMetal, .03, .004, .022); ax(wardMetal, .005, .08, -.02);
+    room.add(g); return g; });
   // 窓の外の黒い人は暗い夜景に溶けてしまうので、背後にぼんやり明るい光を置いて輪郭を浮かび上がらせる
   plane(R.sWin, 1.5, 2.3, basic(0xc4d4ff, { map: glowTex(), transparent: true, opacity: .75, blending: T3.AdditiveBlending, depthWrite: false, fog: false }), 0, 1.0, -.3, 0, 0);
 
@@ -1128,6 +1154,7 @@ function setLights(m){
   if(m === 'cloud') set(0x232b40, .2, 0xffc790, .12, .03, 0x8aa0d0, 0, 0x1a1610);
   if(m === 'dawnB') set(0x7f95c4, .78, 0xffc790, .2, .5, 0xa8bcf0, 0, 0x2a2418);
   if(m === 'dawnR'){ set(0xc88a78, .74, 0xffc790, .2, .6, 0xff9a6a, 0, 0x2a2018); L.moon.position.set(6, 1.2, .3); }
+  if(m === 'ward') set(0x9fb0a8, .85, 0xe4fff0, 1.1, .2, 0x8aa0d0, 0, 0x6b5a40);
   if(m === 'red') set(0x5a1c1c, .62, 0xff2a18, 1.2, .12, 0x8aa0d0, 0, 0x900c0c);
   if(m === 'day') set(0xc9ced6, .72, 0xffc790, 0, 0, 0x8aa0d0, .75, 0x000000);
 }
@@ -1173,6 +1200,7 @@ const HP = {};
   HP.mom = makePerson({ top: 0x6e5d63, bottom: 0x3b3438, hair: 0x2a2220, h: 1.58 });
   HP.dad = makePerson({ top: 0x3d4450, bottom: 0x2b2e33, hair: 0x353535, h: 1.72 });
   HP.doc.position.set(1.45, 0, -1.55); HP.mom.position.set(.85, 0, -2.25); HP.dad.position.set(1.4, 0, -2.55);
+  HP.nurse = makePerson({ top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62 }); HP.nurse.position.set(-.8, 0, .1); HP.nurse.visible = false; s.add(HP.nurse);
   [HP.doc, HP.mom, HP.dad].forEach(p => s.add(p));
   HP.doc.lookAt(1.0, 0, -2.4); HP.mom.lookAt(1.45, 0, -1.55); HP.dad.lookAt(1.45, 0, -1.55);
   box(s, .3, .05, 1.3, basic(0xf4f8f2), 0, 2.76, -.3); box(s, .3, .05, 1.3, basic(0xf4f8f2), 1.2, 2.76, -1.8); box(s, .3, .05, 1.3, basic(0xf4f8f2), -.9, 2.76, -2.6);
@@ -1181,6 +1209,18 @@ const HP = {};
   const ml = new T3.PointLight(0x40ff80, .35, 2.5); ml.position.set(-.7, 1.3, .3); s.add(ml);
   const cl = new T3.PointLight(0xd8e0dc, .55, 7, 1.2); cl.position.set(1.2, 2.6, -1.8); s.add(cl);
 })();
+
+/* 病室の人の位置: near=true で、ベッドの脇に集まる(真エンディング)。false で元の位置(失敗エンディング) */
+function hospPlace(near){
+  if(near){
+    HP.doc.position.set(.8, 0, .5); HP.mom.position.set(.76, 0, .05); HP.dad.position.set(.82, 0, -.4);
+    [HP.doc, HP.mom, HP.dad, HP.nurse].forEach(o => o.lookAt(0, 0, .1)); HP.nurse.visible = true;
+    HP.mom.userData.head.rotation.x = .3; HP.dad.userData.head.rotation.x = .3;
+  } else {
+    HP.doc.position.set(1.45, 0, -1.55); HP.mom.position.set(.85, 0, -2.25); HP.dad.position.set(1.4, 0, -2.55);
+    HP.doc.lookAt(1.0, 0, -2.4); HP.mom.lookAt(1.45, 0, -1.55); HP.dad.lookAt(1.45, 0, -1.55); HP.nurse.visible = false;
+  }
+}
 
 /* ============================================================
    RAILWAY CROSSING
@@ -1326,6 +1366,13 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, fl: 0, tf: null, scr: null
   const L_ = makeArm(-1), R_ = makeArm(1);
   armRoot.add(L_.group, R_.group);
   ARM.arms = [L_, R_];
+  {   // 左手の甲の点滴(テープとチューブ)
+    R.ivArm = new T3.Group(); R.ivArm.visible = false; L_.group.add(R.ivArm);
+    const tube = basic(0xdfe9e6);
+    box(R.ivArm, .06, .007, .035, lam(0xf0f0ec), 0, .034, .08);
+    tubeBetween(R.ivArm, new T3.Vector3(.012, .036, .08), new T3.Vector3(.014, .076, .15), .0035, tube);
+    tubeBetween(R.ivArm, new T3.Vector3(.014, .076, .15), new T3.Vector3(.03, .13, .7), .0035, tube);
+  }
   // スマホ(画面が手のひらの反対=カメラ側を向く)
   const phone = new T3.Group();
   box(phone, .072, .0095, .15, lam(0x15161a), 0, -.0055, 0);
@@ -1465,7 +1512,7 @@ const AT = {
 const ANOM = [
   // --- d1: すぐわかる
   { id: 'windowInvert', d: 1, at: AT.win, name: '窓の外の景色の色が、反転していた', on(){ R.backdropMat.map = TX.cityInv; } },
-  { id: 'shadowMan', d: 1, black: true, at: [-1.42, 1.2, -1.55], name: '部屋の隅に、黒い人影が立っていた', on(){ R.shadowMan.visible = true; } },
+  { id: 'shadowMan', role: 'nurse', d: 1, black: true, at: [-1.42, 1.2, -1.55], name: '部屋の隅に、黒い人影が立っていた', on(){ R.shadowMan.visible = true; } },
   { id: 'redLight', d: 1, at: [0, 2.3, -.2], name: '部屋の灯りが、赤かった', on(){ setLights('red'); } },
   { id: 'clockSpin', d: 1, at: AT.clock, name: '時計の針が、異様な速さで回っていた', on(){} },
   { id: 'chairCeiling', d: 1, at: [1.02, 2.2, -1.35], name: '椅子が、天井に張りついていた', on(){ R.chair.position.set(R.chairPos.x, H, R.chairPos.z); R.chair.rotation.set(Math.PI, 0, 0); } },
@@ -1519,11 +1566,21 @@ const ANOM = [
   { id: 'ceilingLightOff', d: 3, at: [0, 2.36, -.2], name: '灯りは消えているのに、部屋が明るかった', on(){ R.discMat.emissive.setHex(0x000000); R.discMat.color.setHex(0x555555); } },
   { id: 'phoneGone', d: 3, at: AT.phone, name: '枕元のスマホが、なくなっていた', on(){ R.phoneGroup.visible = false; } },
   // --- 黒い人(すぐわかる。序盤に出やすい)
-  { id: 'shadowBed', d: 1, black: true, at: [-.45, 1.3, .85], name: 'ベッドのすぐ横に、黒い人影が立っていた', on(){ R.sBed.visible = true; } },
-  { id: 'shadowDesk', d: 1, black: true, at: AT.desk, name: '机の椅子に、黒い人影が座っていた', on(){ R.sDesk.visible = true; } },
-  { id: 'shadowDoor', d: 1, black: true, at: AT.door, name: '開いたドアの前に、黒い人影が立っていた', on(){ R.door.rotation.y = -1.25; R.sDoor.visible = true; } },
-  { id: 'shadowCeiling', d: 2, black: true, at: [0, 2.2, -.2], name: '天井の電気に、黒い人影が張り付いていた', on(){ R.sCeil.visible = true; } },
-  { id: 'shadowWindow', d: 1, black: true, at: AT.win, name: 'ベランダに、黒い人影が立っていた', on(){ R.sWin.visible = true; } },
+  { id: 'shadowBed', role: 'nurse', d: 1, black: true, at: [-.45, 1.3, .85], name: 'ベッドのすぐ横に、黒い人影が立っていた', on(){ R.sBed.visible = true; } },
+  { id: 'shadowDesk', role: 'doctor', d: 1, black: true, at: AT.desk, name: '机の椅子に、黒い人影が座っていた', on(){ R.sDesk.visible = true; } },
+  { id: 'shadowDoor', role: 'doctor', d: 1, black: true, at: AT.door, name: '開いたドアの前に、黒い人影が立っていた', on(){ R.door.rotation.y = -1.25; R.sDoor.visible = true; } },
+  { id: 'shadowCeiling', role: 'visitor', d: 2, black: true, at: [0, 2.2, -.2], name: '天井の電気に、黒い人影が張り付いていた', on(){ R.sCeil.visible = true; } },
+  // --- 病室の記憶(本当は病院のベッドにいる)
+  { id: 'shadowFamily', role: 'visitor', hosp: true, d: 1, black: true, at: [-.45, 1.3, 1.25], name: 'ベッドの横に、黒い人影が3人並んで、見下ろしていた', on(){ R.sFam.forEach(o => o.visible = true); } },
+  { id: 'shadowSyringe', role: 'nurse', hosp: true, d: 1, black: true, at: [-.55, 1.3, 1.8], name: '枕元に、注射器を持った黒い人影が立っていた', on(){ R.sSyr.visible = true; } },
+  { id: 'ivStand', hosp: true, d: 1, at: [-.68, 1.5, .62], name: 'ベッドの横に、点滴スタンドが立っていた', on(){ R.iv.visible = true; } },
+  { id: 'bedRails', hosp: true, d: 1, at: [-.75, .9, 1.2], name: 'ベッドの両側に、柵が立っていた', on(){ R.rails.visible = true; } },
+  { id: 'ivArm', hosp: true, d: 2, at: [-1.28, .6, 1.0], name: '左手に、点滴のチューブがつながっていた', on(){ R.ivArm.visible = true; } },
+  { id: 'syringeWall', hosp: true, d: 2, at: [-1.7, 1.15, 1.9], name: '壁から、注射器が突き出ていた', on(){ R.syr[0].visible = true; } },
+  { id: 'syringesWall', hosp: true, d: 3, at: [-1.7, 1.5, 1.2], name: '壁から、注射器が何本も突き出ていた', on(){ R.syr.forEach(g => g.visible = true); } },
+  { id: 'wardLight', hosp: true, d: 2, at: [0, 2.3, -.2], name: '天井の灯りが、病室のような白い蛍光灯になっていた', on(){ setLights('ward'); } },
+  { id: 'monitorBeep', hosp: true, d: 2, at: [-1.0, 1.3, 1.2], name: '規則正しい電子音(ピッ、ピッ)が、どこからか聞こえていた', on(){}, start(){ every('monitor', 1030, () => tone(1046, .09, .1)); } },
+  { id: 'shadowWindow', role: 'visitor', d: 1, black: true, at: AT.win, name: 'ベランダに、黒い人影が立っていた', on(){ R.sWin.visible = true; } },
   // --- 数字・文字
   { id: 'digitalBug', d: 3, at: AT.dclock, name: '枕元のデジタル時計の分が「61」になっていた', on(){} },
   { id: 'posterText', d: 3, at: AT.poster, name: '壁のポスターの文字が「みみみみ」になっていた', on(){ drawPoster(true); } },
@@ -1573,8 +1630,18 @@ const ANOM_BY = Object.fromEntries(ANOM.map(a => [a.id, a]));
 function growStart(id){ const g = R.grow[id]; g.n = g.start; g.items.forEach((m, i) => m.visible = i < g.start); }
 const DIFF = { 1: [1], 2: [1, 2], 3: [2], 4: [2, 3], 5: [3, 2], 6: [3] };
 function pickAnomaly(){
+  if(S.idx === S.forceHosp){   // 毎晩、病院関連の異変を必ず1回
+    const hp = ANOM.filter(a => a.hosp && !S.used.has(a.id));
+    if(hp.length){
+      const hw = a => S.seen.has(a.id) ? .2 : 1;
+      let r = Math.random() * hp.reduce((t, a) => t + hw(a), 0), ph = hp[hp.length - 1];
+      for(const a of hp){ r -= hw(a); if(r <= 0){ ph = a; break; } }
+      S.used.add(ph.id); S.seenNow.add(ph.id); return ph;
+    }
+  }
   if(S.idx === S.forceBlack){
-    const bp = ANOM.filter(a => a.black && !S.used.has(a.id));
+    let bp = ANOM.filter(a => a.black && a.role === S.forceRole && !S.used.has(a.id));   // その夜の黒い人の役(医者/看護師/見舞い)
+    if(!bp.length) bp = ANOM.filter(a => a.black && !S.used.has(a.id));
     if(bp.length){
       const bw = a => (a.id === 'shadowMan' || a.id === 'shadowDoor') ? 2 : 1;   // 近づいてくる黒い人を出やすく
       let r = Math.random() * bp.reduce((t, a) => t + bw(a), 0), pb = bp[bp.length - 1];
@@ -1706,7 +1773,7 @@ function resetExtras(){
   R.sBed.position.set(-.45, 0, .85); R.sBed.lookAt(BED_EYE.x, 0, BED_EYE.z);
   S.caught = false; S.stepT = 0; S.hbT = 0; S.chaseT = 0; S.redK = 0;
   [R.aPerson, R.aTrail, R.aHuge, R.aShoes, R.aBottles, R.aPapers].forEach(g => g.visible = false);
-  [R.sBed, R.sDesk, R.sDoor, R.sWin, R.sCeil].forEach(o => o.visible = false);
+  [R.sBed, R.sDesk, R.sDoor, R.sWin, R.sCeil, R.iv, R.rails, R.ivArm, R.sSyr, ...R.sFam, ...R.syr].forEach(o => o.visible = false);
   R.pillsMany.visible = false; R.blisters.visible = false; R.pillsFew.visible = true; R.bagBody.scale.set(1, 1, 1); R.bagBody.position.y = 0;
   R.ledMat.color.setHex(0x1a2630); R.ledGlow.visible = false;
   R.jShadow.visible = true; R.jShadow.position.x = 1.41;
@@ -1717,7 +1784,7 @@ function resetExtras(){
   if(BKT.garble) drawBook(false);
   if(MEM.bad) drawMemo(false);
   clearCars(); CARS.t = 0; CARS.next = 1.5 + Math.random() * 2.5;
-  stopSnd('selfBreath');
+  stopSnd('selfBreath'); stopSnd('monitor');
 }
 function startAnomalySounds(){ S.active.forEach(id => { const a = ANOM_BY[id]; if(a && a.start) a.start(); }); }
 function selfBreathStart(){
@@ -1921,6 +1988,12 @@ function newGame(keepNight){
   do{ seq = Array.from({ length: 6 }, () => Math.random() < p); n = seq.filter(Boolean).length; }while(n < lo || n > hi || (!(seq[0] || seq[1]) && Math.random() < .85));   // 最初の2回のうちに夢が来やすい
   S.seq = seq;
   S.forceBlack = seq.findIndex(Boolean);   // 毎晩、最初の夢のラウンドで必ず黒い人を出す
+  // 黒い人の役(医者・看護師・見舞いの人)は、3夜で重ならず全部出る。順番は、ゲームごとにランダム
+  if(!keepNight || !S.roles) S.roles = ['doctor', 'nurse', 'visitor'].sort(() => Math.random() - .5);
+  S.forceRole = S.roles[(S.night - 1) % 3];
+  // 毎晩、病院関連の異変を1回(黒い人の回とは別の夢のラウンドで)
+  const others = seq.map((v, i) => v && i !== S.forceBlack ? i : -1).filter(i => i >= 0);
+  S.forceHosp = others.length ? others[Math.floor(Math.random() * others.length)] : -1;
 }
 function resetView(){
   V.pos.copy(BED_EYE); V.yaw = 0; V.pitch = -.05; V.roll = 0; V.tfov = 70; V.shake = 0; V.breathe = 0;
@@ -2066,7 +2139,7 @@ async function startSleep(){
 
 /* ---- failure: it was a dream, but you slept ---- */
 async function hospitalEnding(){
-  S.mode = 'cut';
+  S.mode = 'cut'; hospPlace(false);
   const reasonInfo = `この部屋の異変 ── ${activeNames().join(' / ') || 'なし'}`;
   setSkip(() => start(async () => gameOver('眠り続けた。', reasonInfo)));
   S.ticking = false;
@@ -2123,7 +2196,7 @@ const DEATHS = {
   window:   { name: '窓から', fn: deathWindow },
   road:     { name: '道路', fn: deathRoad },
   crossing: { name: '踏切', fn: deathCrossing },
-  stairs:   { name: '外階段', fn: deathStairs }
+  stairs:   { name: '橋(川)', fn: deathStairs }
 };
 async function panicEnding(kind, afterAction){
   kind = kind || pick(Object.keys(DEATHS));
@@ -2246,18 +2319,17 @@ async function deathStairs(){
   loopNoise('night', { type: 'lowpass', freq: 300, vol: .12, fadeIn: 1.5 });
   await sleep(2200);
   skippable = true;
-  await say('アパートの、外階段。', 2400);
+  await say('川に架かる、橋の上。', 2400);
   await say('高いところから落ちる夢は、いつも途中で目が覚める。', 3400);
-  await say('いちばん上の段から、飛んだ。', 2600);
+  await say('欄干から、飛んだ。', 2600);
   skippable = false;
   whoosh(); await sleep(450);
-  [0, .35, .62, .95, 1.2, 1.55, 1.9].forEach((w, i) => thud(1.1 - i * .12, w));
+  noiseHit(.7, 1.1, 'lowpass', 900, .7, .55); thud(.5, .6);   // 水に落ちる音
   await sleep(2600);
   stopSnd('night');
   await sleep(3000);
   skippable = true;
-  creak(); await sleep(900);
-  await say('どこかの部屋の、ドアが開く音がした。', 3000);
+  await say('川沿いの道を、誰かが走ってくる足音がした。', 3000);
   for(let i = 0; i < 7; i++) step(.35, i * .22);
   await sleep(1800);
   await say('「……大丈夫ですか」', 2800);
@@ -2368,7 +2440,43 @@ async function trueAfter(){
   await trueTail();
 }
 async function trueTail(){
-  show('news', false); setFade(1, '#000');
+  show('news', false); setFade(1, '#000'); S.scene = 'room';
+  skippable = true;
+  setSkip(() => start(trueWake));
+  await say('先生「目を覚ましました」', 3000);
+  await say('母「良かった！」', 2200);
+  await say('(母の、泣く声。)', 2600);
+  await say('父「心配させて。お前は、3カ月も寝たままだったんだぞ」', 4400);
+  await say('僕が目を覚ますと、そこは病院の病室のベッドの上だった。', 4800);
+  await trueWake();
+}
+/* 目を覚ますと、病院の病室。黒い人は、夜中に見回りに来ていた看護師や先生、見舞いの家族だった */
+async function trueWake(){
+  S.mode = 'cut'; S.scene = 'hospital'; skippable = true;
+  setSkip(() => start(trueLines));
+  hospPlace(true);
+  V.pos.set(0, .98, .78); V.yaw = -.2; V.pitch = 1.2; V.roll = -.2; V.tfov = V.fov = 62; V.breathe = 1;   // 目を開けると、病院の天井
+  post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.2; post.uniforms.uBright.value = .8;
+  S.beeping = true;
+  setFade(1, '#000');
+  await sleep(500);
+  fade(0, 2600);
+  const fam = aimAt(new T3.Vector3(.78, 1.45, .05)), nur = aimAt(new T3.Vector3(-.8, 1.45, .1));
+  lookTo(fam.yaw, fam.pitch, 6500);
+  await tween(4200, e => { post.uniforms.uNarrow.value = .95 - e * .32; });
+  await wait(3600);
+  await lookTo(nur.yaw, nur.pitch, 3800);
+  await wait(3200);
+  skippable = false;
+  fade(1, 3200);
+  await tween(3200, e => { post.uniforms.uNarrow.value = .63 + e * .37; });
+  await sleep(1200);
+  await trueLines();
+}
+async function trueLines(){
+  S.beeping = false; S.scene = 'room'; resetView(); stopAllSnd();
+  setFade(1, '#000');
+  setSkip(null);
   skippable = true;
   await say('ずっと、眠りたかった。', 3800);
   await say('誰かに、起こしてほしかった。', 4600);
@@ -2479,6 +2587,7 @@ function buildDebug(){
       <button data-e="hospital">病院(夢なのに眠る)</button>
       <button data-e="news">真エンディング(新聞記事)</button>
       <button data-e="caught">黒い人に追いつかれる</button>
+      <button data-e="wake">真エンディング(病室で目覚める)</button>
       <button data-e="trueend">真エンディング(黒い人→新聞→言葉)</button>
     </div>
     <div>${Object.entries(DEATHS).map(([k, v]) => `<button data-d="${k}">死亡: ${v.name}</button>`).join('')}<button data-d="random">死亡: ランダム</button></div>
@@ -2541,6 +2650,7 @@ function buildDebug(){
     }
     if(en === 'clear') start(async () => { S.night = NIGHTS; await morning(); });
     if(en === 'hospital') start(async () => { S.scene = 'room'; rebuild(); setFade(0); await hospitalEnding(); });
+    if(en === 'wake') start(async () => { S.scene = 'room'; rebuild(); setFade(1, '#000'); await trueTail(); });
     if(en === 'trueend') start(async () => { S.night = NIGHTS; S.trueEnd = true; await trueEnding(); });
     if(en === 'caught') start(async () => { S.scene = 'room'; S.active = new Set(['shadowBed']); rebuild(); setFade(0); R.sBed.position.set(-1.0, 0, .9); await caughtEnding(R.sBed); });
     if(en === 'news') start(async () => { S.trueEnd = true; await newsEnding(); });

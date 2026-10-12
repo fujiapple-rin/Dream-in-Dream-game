@@ -2532,7 +2532,7 @@ function blackout(){ setFade(1, '#000'); humTo(0, .05); S.ticking = false; $('su
 async function deathHammer(){
   ARM.tool = 'hammer';
   tween(1400, e => { ARM.reach = e; });
-  await say('玄関の工具箱から、ハンマーを持ってきた。', 2800);
+  await say('ハンマーを、手に取った。', 2800);
   await say('夢なら、これで覚めるはずだ。', 2800);
   skippable = false;
   calmDown(); blackout(); thud(1.2);
@@ -2707,7 +2707,9 @@ async function morning(){
   await tween(2000, e => { R.door.rotation.y = -1.4 * e; });
   await sleep(700);
   moveTo(new T3.Vector3(.75, 1.58, -3.0), 3200);
-  await sleep(900);
+  await sleep(600);
+  await wardBlink();
+  await sleep(300);
   await fade(1, 2600, '#fff');
   await sleep(600);
   S.trueEnd = TRUE_END_ENABLED && S.mistakes === 0;
@@ -2716,6 +2718,12 @@ async function morning(){
   await say('外に出た。', 2800, true);
   skippable = false;
   await finishMorning();
+}
+/* 通常エンディング: 歩いている途中で、一瞬だけ病室が映る(まだ夢の中だった、とほのめかす) */
+async function wardBlink(){
+  S.scene = 'ward'; S.beeping = true;
+  await sleep(260);
+  S.beeping = false; S.scene = 'room';
 }
 /* 真エンディング: 一度もミスしなかった人だけが見る(病室で目覚める) */
 /* 真エンディング: 静かな黒い人 → 病室で目覚める(先生・母・父の声) → 退院して街並み → TRUE END */
@@ -2865,7 +2873,7 @@ function gameOver(reason, info, note){
 }
 
 /* ---- screens ---- */
-const CLEAR_KEY = 'dd_true_clear';
+const CLEAR_KEY = DEBUG ? 'dd_true_clear_debug' : 'dd_true_clear';   // デバッグ画面は別のキー
 const isCleared = () => { try{ return localStorage.getItem(CLEAR_KEY) === '1'; }catch(_){ return false; } };
 function markCleared(){ try{ localStorage.setItem(CLEAR_KEY, '1'); }catch(_){} document.body.classList.add('cleared'); }
 function townTitle(keepFade){   // 真エンディングをクリアした後は、タイトル画面の背景が、ラストの街並みになる

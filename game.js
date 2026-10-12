@@ -704,6 +704,32 @@ const lam = (color, o = {}) => crispMat(new T3.MeshLambertMaterial(Object.assign
 const basic = (color, o = {}) => crispMat(new T3.MeshBasicMaterial(Object.assign({ color }, o)));
 const blackMat = basic(0x030303);
 function box(parent, w, h, d, m, x, y, z){ const me = new T3.Mesh(new T3.BoxGeometry(w, h, d), m); me.position.set(x, y, z); parent.add(me); return me; }
+/* ---- フリー素材(Kenney・CC0)の3Dモデル。読み込めなかった時は、図形のままでも遊べる ---- */
+const MODELS = {};
+function loadModel(name){
+  if(!T3.GLTFLoader) return Promise.resolve(null);
+  if(!MODELS[name]) MODELS[name] = new Promise(res => new T3.GLTFLoader().load('assets/models/' + name + '.glb', g => {
+    CRISP_BUILD = true;   // 鮮明な場面用: 頂点の吸着なし
+    g.scene.traverse(m => { if(m.isMesh){ const old = m.material; if(old.map) old.map.encoding = T3.LinearEncoding; m.material = lam(0xffffff, { map: old.map || null, color: old.color ? old.color.getHex() : 0xffffff }); } });
+    CRISP_BUILD = false;
+    res(g.scene);
+  }, undefined, () => res(null)));
+  return MODELS[name].then(o => o && o.clone());
+}
+/* モデルを、指定の大きさ(h=高さ / w=横 / d=奥行き のどれか1つ)に合わせ、足元の中央を原点にそろえる */
+function fitModel(o, fit, ry = 0){
+  o.rotation.y = ry;
+  const b = new T3.Box3().setFromObject(o), sz = b.getSize(new T3.Vector3());
+  o.scale.multiplyScalar(fit.h ? fit.h / sz.y : fit.w ? fit.w / sz.x : fit.d / sz.z);
+  b.setFromObject(o); const c = b.getCenter(new T3.Vector3());
+  o.position.set(-c.x, -b.min.y, -c.z);
+  const w = new T3.Group(); w.add(o); return w;
+}
+/* 図形でできた proc を、モデルに差し替える(読み込めたら proc を隠す) */
+async function swapModel(proc, name, fit, x, z, ry = 0, y = 0){
+  const o = await loadModel(name); if(!o) return null;
+  const w = fitModel(o, fit, ry); w.position.set(x, y, z); proc.parent.add(w); proc.visible = false; return w;
+}
 function tubeBetween(parent, a, b, r, m){   // 2点を結ぶ細い管(点滴のチューブ用)
   const d = new T3.Vector3().subVectors(b, a), len = d.length(), me = new T3.Mesh(new T3.CylinderGeometry(r, r, len, 5), m);
   me.position.copy(a).addScaledVector(d, .5); me.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), d.normalize()); parent.add(me); return me;
@@ -1260,30 +1286,41 @@ const WD = {};
   plane(s, 1, 1.2, basic(0xf6fff8), .75, 1.4, -4.98);
   box(s, .9, .03, .4, basic(0xffffff), .75, H - .02, -3.7);
   // ベッド(部屋のベッドと同じ位置)
-  box(s, 1.02, .34, 2.1, metal, -1.28, .17, 1.33);
-  box(s, 1.02, .85, .05, metal, -1.28, .425, 2.375);
-  box(s, .97, .18, 2.04, lam(0xe8ecee), -1.28, .43, 1.33);
-  box(s, .99, .1, 1.45, lam(0x9db7c8), -1.28, .57, .96);
-  box(s, .55, .1, .32, lam(0xf6f6f2), -1.28, .58, 2.18).rotation.x = .1;
+  const procBed = new T3.Group(); s.add(procBed);
+  box(procBed, 1.02, .34, 2.1, metal, -1.28, .17, 1.33);
+  box(procBed, 1.02, .85, .05, metal, -1.28, .425, 2.375);
+  box(procBed, .97, .18, 2.04, lam(0xe8ecee), -1.28, .43, 1.33);
+  box(procBed, .99, .1, 1.45, lam(0x9db7c8), -1.28, .57, .96);
+  box(procBed, .55, .1, .32, lam(0xf6f6f2), -1.28, .58, 2.18).rotation.x = .1;
+  swapModel(procBed, 'bedSingle', { d: 2.1 }, -1.28, 1.33, Math.PI);
   for(const x of [-.745, -1.775]){ box(s, .03, .03, 1.5, metal, x, .98, 1.2); box(s, .03, .03, 1.5, metal, x, .76, 1.2); for(let i = 0; i < 6; i++) box(s, .025, .38, .025, metal, x, .8, .5 + i * .28); }
   // 点滴スタンド・モニター
   const iv = new T3.Group(); iv.position.set(-.68, 0, .62); s.add(iv);
   cyl(iv, .012, .012, 1.9, metal, 0, .95, 0, 6); box(iv, .5, .025, .03, metal, 0, .03, 0); box(iv, .03, .025, .5, metal, 0, .03, 0); box(iv, .3, .02, .02, metal, 0, 1.88, 0);
   for(const x of [-.13, .13]) box(iv, .1, .17, .028, basic(0xcfe0e0, { transparent: true, opacity: .75 }), x, 1.74, 0);
   tubeBetween(iv, new T3.Vector3(0, 1.64, 0), new T3.Vector3(-.27, .66, .28), .005, basic(0xdfe9e6));
-  box(s, .4, .5, .38, lam(0xd8d4c8), -.52, .25, 2.17);
+  const procNs = new T3.Group(); s.add(procNs); box(procNs, .4, .5, .38, lam(0xd8d4c8), -.52, .25, 2.17);
+  swapModel(procNs, 'sideTable', { h: .5 }, -.52, 2.17, -Math.PI / 2);
   box(s, .36, .28, .16, lam(0x2e3236), -.52, .66, 2.17);
   plane(s, .32, .22, basic(0xffffff, { map: ECG.tex }), -.602, .66, 2.17, -Math.PI / 2);
   // 机と椅子・テレビ・時計・ホワイトボード・掲示・絵・お見舞いの花(部屋の物と同じ位置)
-  box(s, .6, .04, 1.3, wood, 1.5, .73, -1.3); for(const [x, z] of [[1.25, -1.9], [1.25, -.7], [1.75, -1.9], [1.75, -.7]]) box(s, .04, .71, .04, metal, x, .36, z);
-  box(s, .4, .05, .4, lam(0x5a6a7a), 1.02, .45, -1.35); box(s, .04, .4, .4, lam(0x5a6a7a), .83, .7, -1.35); for(const [x, z] of [[.86, -1.52], [.86, -1.18], [1.18, -1.52], [1.18, -1.18]]) box(s, .03, .43, .03, metal, x, .22, z);
-  box(s, 1.0, .4, .45, lam(0x8b6f55), -.45, .2, -2.15); box(s, .95, .55, .06, lam(0x16181b), -.45, .78, -2.2);
+  const procDesk = new T3.Group(); s.add(procDesk);
+  box(procDesk, .6, .04, 1.3, wood, 1.5, .73, -1.3); for(const [x, z] of [[1.25, -1.9], [1.25, -.7], [1.75, -1.9], [1.75, -.7]]) box(procDesk, .04, .71, .04, metal, x, .36, z);
+  swapModel(procDesk, 'desk', { d: 1.3 }, 1.5, -1.3, Math.PI / 2);
+  const procChair = new T3.Group(); s.add(procChair);
+  box(procChair, .4, .05, .4, lam(0x5a6a7a), 1.02, .45, -1.35); box(procChair, .04, .4, .4, lam(0x5a6a7a), .83, .7, -1.35); for(const [x, z] of [[.86, -1.52], [.86, -1.18], [1.18, -1.52], [1.18, -1.18]]) box(procChair, .03, .43, .03, metal, x, .22, z);
+  swapModel(procChair, 'chairDesk', { h: .95 }, 1.02, -1.35, Math.PI / 2);
+  const procTv = new T3.Group(); s.add(procTv);
+  box(procTv, 1.0, .4, .45, lam(0x8b6f55), -.45, .2, -2.15); box(procTv, .95, .55, .06, lam(0x16181b), -.45, .78, -2.2);
+  swapModel(procTv, 'cabinetTelevision', { w: 1.0 }, -.45, -2.15, 0).then(w => { if(w){ const dm = new T3.Group(); s.add(dm); swapModel(dm, 'televisionModern', { w: .85 }, -.45, -2.18, 0, new T3.Box3().setFromObject(w).max.y); } });
   { const c = cyl(s, .22, .22, .04, lam(0xf2f2ee), -.45, 1.86, -2.37, 24); c.rotation.x = Math.PI / 2; box(s, .02, .16, .01, lam(0x222222), -.45, 1.9, -2.34); box(s, .12, .02, .01, lam(0x222222), -.4, 1.86, -2.34); }
   box(s, .55, .75, .03, lam(0xf8f8f6), -1.3, 1.45, -2.38); for(let i = 0; i < 4; i++) box(s, .4, .012, .01, lam(0x445566), -1.3, 1.65 - i * .14, -2.36);
   box(s, .03, .8, .6, lam(0xf4f4f0), -1.78, 1.5, .85); box(s, .035, .14, .6, lam(0x6a9ac0), -1.78, 1.84, .85);
   box(s, .6, .4, .03, lam(0xb6cfc4), -1.28, 1.72, 2.37);
-  box(s, .5, .5, .5, lam(0xd8d4c8), 1.55, .25, 2.1); cyl(s, .06, .05, .25, lam(0xd8e4ea), 1.55, .63, 2.1, 8);
-  for(const [x, y, z, c] of [[1.55, .84, 2.1, 0xf0a0b8], [1.5, .8, 2.06, 0xf6e27a], [1.6, .8, 2.14, 0xffffff], [1.52, .88, 2.14, 0xf0a0b8]]){ const f = new T3.Mesh(new T3.SphereGeometry(.05, 8, 6), lam(c)); f.position.set(x, y, z); s.add(f); }
+  const procFl = new T3.Group(); s.add(procFl);
+  box(procFl, .5, .5, .5, lam(0xd8d4c8), 1.55, .25, 2.1); cyl(procFl, .06, .05, .25, lam(0xd8e4ea), 1.55, .63, 2.1, 8);
+  for(const [x, y, z, c] of [[1.55, .84, 2.1, 0xf0a0b8], [1.5, .8, 2.06, 0xf6e27a], [1.6, .8, 2.14, 0xffffff], [1.52, .88, 2.14, 0xf0a0b8]]){ const f = new T3.Mesh(new T3.SphereGeometry(.05, 8, 6), lam(c)); f.position.set(x, y, z); procFl.add(f); }
+  swapModel(procFl, 'pottedPlant', { h: .95 }, 1.55, 2.1, 0);
   // 光
   s.add(new T3.AmbientLight(0x9aa6a0, .7));
   box(s, 1.2, .03, .5, basic(0xffffff), 0, H - .02, -.2);
@@ -1338,14 +1375,41 @@ const TW = { sparks: [], doors: [], open: 0 };
     for(let y = 0; y < 8; y++) for(let x = 0; x < 4; x++){ g.fillStyle = r() < .22 ? '#fff1b8' : '#9ec9ea'; g.fillRect(x * 16 + 3, y * 12 + 3, 10, 7); }
     const t = new T3.CanvasTexture(c); t.wrapS = t.wrapT = T3.RepeatWrapping; t.minFilter = T3.LinearMipmapLinearFilter; t.magFilter = T3.LinearFilter; return t; })();
   const pastel = [0xf3d9c4, 0xdbe6c8, 0xc9dcee, 0xf1e4b6, 0xe9c9d3, 0xd5d0e8, 0xf6f0e4];
-  const bld = (x, z, w, h, d, c) => { const t = winT.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4.5)); box(s, w, h, d, lam(c, { map: t }), x, h / 2, z); };
-  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * 1.5, 6 + r() * 3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0]);
-  for(let i = 0; i < 26; i++){ const x = -42 + i * 3.4 + r() * 2; bld(x, -62 - r() * 30, 5 + r() * 4, 14 + r() * 28, 6, pastel[(r() * pastel.length) | 0]); }
+  const procBld = new T3.Group(), slots = []; s.add(procBld);
+  const bld = (x, z, w, h, d, c, far) => { const t = winT.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4.5)); box(procBld, w, h, d, lam(c, { map: t }), x, h / 2, z); slots.push({ x, z, w, h, far }); };
+  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * 1.5, 6 + r() * 3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0], false);
+  for(let i = 0; i < 26; i++){ const x = -42 + i * 3.4 + r() * 2; bld(x, -62 - r() * 30, 5 + r() * 4, 14 + r() * 28, 6, pastel[(r() * pastel.length) | 0], true); }
+  {   // フリー素材のビルに差し替え(通り沿いは低めのビル、遠くの街並みは高層ビル)
+    const near = 'abcdefghijklmn'.split('').map(k => 'building-' + k), far = 'abcde'.split('').map(k => 'building-skyscraper-' + k);
+    Promise.all(slots.map((sl, i) => loadModel(sl.far ? far[i % far.length] : near[i % near.length]))).then(list => {
+      if(list.some(o => !o)) return;
+      const g = new T3.Group(); town.add(g);
+      list.forEach((o, i) => { const sl = slots[i], w = fitModel(o, { w: sl.w }); w.position.set(sl.x, 0, sl.z); w.rotation.y = sl.far ? 0 : (sl.x < 0 ? Math.PI / 2 : -Math.PI / 2); g.add(w); });
+      procBld.visible = false;
+    });
+  }
   // 並木・街灯
+  const procTrees = new T3.Group(), treeSpots = []; s.add(procTrees);
   for(let z = -3; z > -31; z -= 5) for(const side of [-1, 1]){
-    cyl(s, .15, .2, 2.2, lam(0x7a5a3c), side * 4.6, 1.1, z, 6);
-    const crown = new T3.Mesh(new T3.SphereGeometry(1.4, 10, 8), lam((z / 5 | 0) % 3 === 0 ? 0xf6b8cc : 0x66b95c)); crown.position.set(side * 4.6, 3.1, z); s.add(crown);
+    const bloom = (z / 5 | 0) % 3 === 0, tg = bloom ? s : procTrees;   // ピンクの桜は図形のまま。ほかの木はモデルに差し替え
+    cyl(tg, .15, .2, 2.2, lam(0x7a5a3c), side * 4.6, 1.1, z, 6);
+    const crown = new T3.Mesh(new T3.SphereGeometry(1.4, 10, 8), lam(bloom ? 0xf6b8cc : 0x66b95c)); crown.position.set(side * 4.6, 3.1, z); tg.add(crown);
+    if(!bloom) treeSpots.push([side * 4.6, z]);
     cyl(s, .05, .06, 3.4, lam(0x5a5f66), side * 3.3, 1.7, z - 2.5, 6);
+  }
+  {
+    const kinds = ['tree_default', 'tree_oak', 'tree_fat', 'tree_detailed'];
+    Promise.all(treeSpots.map((_, i) => loadModel(kinds[i % kinds.length]))).then(list => {
+      if(list.some(o => !o)) return;
+      list.forEach((o, i) => { const w = fitModel(o, { h: 4.6 + (i % 3) * .5 }); w.position.set(treeSpots[i][0], 0, treeSpots[i][1]); w.rotation.y = i * 1.7; town.add(w); });
+      procTrees.visible = false;
+    });
+    // 芝生に、花と低木
+    const fl = ['flower_redA', 'flower_yellowA', 'flower_purpleA', 'plant_bush'];
+    Promise.all(Array.from({ length: 44 }, (_, i) => loadModel(fl[i % fl.length]))).then(list => {
+      if(list.some(o => !o)) return;
+      list.forEach((o, i) => { const w = fitModel(o, { h: i % 4 === 3 ? .9 : .5 }); w.position.set((i % 2 ? 1 : -1) * (5.4 + r() * 2.4), 0, -1 - r() * 30); town.add(w); });
+    });
   }
   // 病院の入口(カメラの後ろ: ロビー → ガラスの自動ドア → 車寄せ)
   const lw = lam(0x9aa6a2);

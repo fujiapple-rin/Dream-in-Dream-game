@@ -1413,8 +1413,10 @@ function armUpdate(t){
    view / input
    ============================================================ */
 const V = { yaw: 0, pitch: -.05, roll: 0, pos: BED_EYE.clone(), fov: 70, tfov: 70, shake: 0, breathe: 0, free: false };
-const NIGHTS = 5;
-const TRUE_END_ENABLED = true;    // 真エンディング(黒い人=眠りへの誘い)。ミスなしで全5夜を抜けた人だけ
+const NIGHTS = 3;
+// 3夜に凝縮:散らかり・難しさ・黒い人の速さなどは「元の5夜構成」の第1・3・5夜の段階を使う
+const stage = () => [1, 3, 5][S.night - 1] || 5;
+const TRUE_END_ENABLED = true;    // 真エンディング(黒い人=眠りへの誘い)。ミスなしで全3夜を抜けた人だけ
 const S = {
   seen: new Set(), seenNow: new Set(), mistakes: 0, trueEnd: false, night: 1, mode: 'title', scene: 'room', look: false, hour: 1, seq: [], idx: 0, used: new Set(),
   isDream: false, active: new Set(), day: false, roundStart: 0, clockBase: 3600, lastSec: null,
@@ -1574,9 +1576,9 @@ function pickAnomaly(){
       S.used.add(pb.id); S.seenNow.add(pb.id); return pb;
     }
   }
-  const hh = Math.min(6, S.hour + S.night - 1);
+  const hh = Math.min(6, S.hour + stage() - 1);
   const okDiff = a => (DIFF[hh] || [1, 2, 3]).includes(a.d);
-  const elig = a => !(a.minNight && S.night < a.minNight);   // 「散らかり」を前提にした異変は第2夜から
+  const elig = a => !(a.minNight && stage() < a.minNight);   // 「散らかり」を前提にした異変は第2夜から
   let pool = ANOM.filter(a => elig(a) && !S.used.has(a.id) && (okDiff(a) || (a.black && S.hour >= 3 && Math.random() < .5)));
   if(!pool.length) pool = ANOM.filter(a => elig(a) && !S.used.has(a.id));
   if(!pool.length) pool = ANOM.filter(elig);
@@ -1630,7 +1632,7 @@ function chaseUpdate(dt){
     minRef = Math.min(minRef, Math.max(.85, REF0[id] - .075 * S.chaseT));
     // 見ていても、見ていなくても、少しずつ近づいてくる(ベッドの手前で止まる)
     if(dist > .85){
-      const mv = (.075 + .01 * (S.night - 1)) * dt;   // ゆっくり。夜が進むほどほんの少し速い
+      const mv = (.075 + .01 * (stage() - 1)) * dt;   // ゆっくり。夜が進むほどほんの少し速い
       o.position.x -= px / dist * mv; o.position.z -= pz / dist * mv;
       o.lookAt(V.pos.x, 0, V.pos.z);
       S.stepT += dt; if(S.stepT > .9){ S.stepT = 0; step(.1); }
@@ -1680,8 +1682,8 @@ async function caughtEnding(o){
 }
 function setClutter(level){ R.clutter.forEach(c => { c.o.visible = c.lv <= level; c.o.position.copy(c.p0); c.o.rotation.y = c.r0; }); }
 function resetExtras(){
-  setClutter(S.night - 1);
-  { const k = S.night - 1, sheets = [0, 2, 4, 7, 10][k], pills = [3, 2, 2, 1, 0][k];
+  setClutter(stage() - 1);
+  { const k = stage() - 1, sheets = [0, 2, 4, 7, 10][k], pills = [3, 2, 2, 1, 0][k];
     R.usedSheets.forEach((g, i) => g.visible = i < sheets);
     const water = [.062, .05, .032, .015, 0][k], loose = [0, 0, 1, 2, 3][k];
     R.nightGlass.visible = k >= 1;
@@ -1691,7 +1693,7 @@ function resetExtras(){
   Object.values(R.grow).forEach(g => { g.items.forEach(m => m.visible = false); g.n = -1; }); MEM.n = 0;
   // 夜が進むほど、黒い人は最初からベッドの近くに現れる(早く判断しないと間に合わない)
   const placeChaser = (o, ox, oz, minD) => {
-    const dx = ox - BED_EYE.x, dz = oz - BED_EYE.z, d0 = Math.hypot(dx, dz), d = Math.max(minD, d0 * (1 - .14 * (S.night - 1)));
+    const dx = ox - BED_EYE.x, dz = oz - BED_EYE.z, d0 = Math.hypot(dx, dz), d = Math.max(minD, d0 * (1 - .14 * (stage() - 1)));
     o.position.set(BED_EYE.x + dx / d0 * d, 0, BED_EYE.z + dz / d0 * d); o.lookAt(BED_EYE.x, 0, BED_EYE.z);
   };
   placeChaser(R.shadowMan, -1.42, -1.55, 1.7); placeChaser(R.sDoor, .75, -3.0, 2.0);
@@ -1907,7 +1909,7 @@ function newGame(keepNight){
   if(!keepNight){ S.night = 1; S.mistakes = 0; S.seen = new Set(); }
   S.seenNow = new Set();   // この夜に出した異変(やり直しなら、出し直し)
   S.hour = 1; S.idx = 0; S.used = new Set();
-  const lo = S.night >= 3 ? 3 : 2, hi = S.night >= 3 ? 5 : 4, p = .55 + .04 * (S.night - 1);
+  const lo = stage() >= 3 ? 3 : 2, hi = stage() >= 3 ? 5 : 4, p = .55 + .04 * (stage() - 1);
   let seq, n;
   do{ seq = Array.from({ length: 6 }, () => Math.random() < p); n = seq.filter(Boolean).length; }while(n < lo || n > hi || (!(seq[0] || seq[1]) && Math.random() < .85));   // 最初の2回のうちに夢が来やすい
   S.seq = seq;
@@ -2453,7 +2455,7 @@ function buildDebug(){
     </div>
     <div class="note">フリーカメラ: WASDで移動 / Q・Eで上下 / Shiftで速く / 矢印キーで向き</div>
     <h3>夜(散らかり・難しさ)</h3>
-    <div>${[1, 2, 3, 4, 5].map(n => '<button data-n="' + n + '">第' + n + '夜</button>').join('')}<button data-a="nextnight">夜明け演出(次の夜へ)</button></div>
+    <div>${[1, 2, 3].map(n => '<button data-n="' + n + '">第' + n + '夜</button>').join('')}<button data-a="nextnight">夜明け演出(次の夜へ)</button></div>
     <h3>時刻</h3>
     <div>${[1, 2, 3, 4, 5, 6, 7].map(h => `<button data-h="${h}">${h}時</button>`).join('')}</div>
     <h3>正解の設定(この部屋は…)</h3>

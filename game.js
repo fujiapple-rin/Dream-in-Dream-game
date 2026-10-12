@@ -2399,6 +2399,7 @@ async function memorize(){
 /* 最初の目覚め: ぼやけた視界で天井 → まばたき → 視界が晴れて、起き上がる */
 async function wakeIntro(){
   V.pos.set(BED_EYE.x, .9, BED_EYE.z); V.pitch = 1.0; V.yaw = .25; V.breathe = 1;
+  S.armOn0 = ARM.on; ARM.on = false;   // 天井を見上げている間は、手は見せない(不自然な位置に浮くため)
   post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.4;
   fade(0, 1800);
   await tween(3000, e => { post.uniforms.uNarrow.value = .95 - e * .4; post.uniforms.uBlur.value = 1.4 * (1 - e * .7); });
@@ -2406,11 +2407,12 @@ async function wakeIntro(){
   await sleep(100);
   await tween(380, e => { post.uniforms.uNarrow.value = 1 - e * .5; });
   await sleep(500);
-  await Promise.all([moveTo(BED_EYE.clone(), 2200), lookTo(0, -.05, 2200), tween(2200, e => { post.uniforms.uNarrow.value = .5 * (1 - e); post.uniforms.uBlur.value = .42 * (1 - e); })]);   // 起き上がる
+  await Promise.all([moveTo(BED_EYE.clone(), 2200), lookTo(0, -.05, 2200), tween(2200, e => { post.uniforms.uNarrow.value = .5 * (1 - e); post.uniforms.uBlur.value = .42 * (1 - e); if(e > .6) ARM.on = S.armOn0 !== false; })]);   // 起き上がる(視線が下がってきたら、手が見える)
   resetView();
 }
 async function memorizeReady(){
   setSkip(null); resetView();
+  if(S.armOn0 !== undefined){ ARM.on = S.armOn0; S.armOn0 = undefined; }
   S.scene = 'room'; setFade(0); S.ticking = true;
   S.mode = 'memorize'; S.look = true; tools(true);
   $('hint').innerHTML = (S.night > 1 ? '少し散らかってきた。<br>' : '') + '部屋の様子を、よく覚えておこう。<br>準備ができたら「眠る」。<br>' + (document.body.classList.contains('mobile') ? 'ドラッグで見渡す' : '右クリックを押しながら動かして見渡す') + ' / ' + (document.body.classList.contains('mobile') ? 'ズームボタンで拡大' : 'ホイールで拡大');

@@ -1386,7 +1386,7 @@ const WD = {};
 /* ============================================================
    TOWN(退院して、病院を出ると広がる、陽光きらめく街並み。クリア後のタイトルの背景にもなる)
    ============================================================ */
-const town = new T3.Scene(); town.fog = new T3.Fog(0xa9d3f4, 55, 150);
+const town = new T3.Scene(); town.fog = new T3.Fog(0xa9d3f4, 60, 145);
 const TW = { sparks: [], doors: [], open: 0 };
 (function buildTown(){
   CRISP_BUILD = true;
@@ -1401,15 +1401,10 @@ const TW = { sparks: [], doors: [], open: 0 };
   const sun = new T3.Sprite(sunM); sun.position.set(-30, 34, -95); sun.scale.set(42, 42, 1); s.add(sun);
   const sunC = new T3.Sprite(new T3.SpriteMaterial({ map: GLOW, color: 0xffffff, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); sunC.position.copy(sun.position); sunC.scale.set(11, 11, 1); s.add(sunC);
   // 地面・道・川・橋
-  plane(s, 90, 80, lam(0xaaa391), 0, 0, -20, 0, -Math.PI / 2);
-  plane(s, 7, 46, lam(0xb8b09c), 0, .03, -8, 0, -Math.PI / 2);
-  for(const x of [-6.5, 6.5]) plane(s, 5, 46, lam(0x8cc07a), x, .03, -8, 0, -Math.PI / 2);
-  plane(s, 90, 9, lam(0x6d7078), 0, .06, -18, 0, -Math.PI / 2);
-  for(let i = -4; i <= 4; i++) box(s, .5, .02, 3.2, lam(0xf4f4f0), i * .9, .09, -18);
-  plane(s, 90, 15, lam(0x6fb3dc, { emissive: 0x1b4a66 }), 0, -.45, -43, 0, -Math.PI / 2);
-  for(const z of [-35.6, -50.4]) box(s, 90, 1.1, .8, lam(0xb8b2a4), 0, -.3, z);
-  box(s, 7.4, .3, 15.4, lam(0xe0dccf), 0, -.05, -43);
-  for(const x of [-3.6, 3.6]) box(s, .18, .9, 15.4, lam(0xf1ede2), x, .55, -43);
+  plane(s, 140, 280, lam(0xaaa391), 0, 0, -120, 0, -Math.PI / 2);
+  plane(s, 7, 160, lam(0xb8b09c), 0, .03, -60, 0, -Math.PI / 2);
+  for(const x of [-6.5, 6.5]) plane(s, 5, 160, lam(0x8cc07a), x, .03, -60, 0, -Math.PI / 2);
+  for(const zr of [-18, -62, -98]){ plane(s, 140, 9, lam(0x6d7078), 0, .06, zr, 0, -Math.PI / 2); for(let i = -4; i <= 4; i++) box(s, .5, .02, 3.2, lam(0xf4f4f0), i * .9, .09, zr); }   // 横断歩道のある交差点が、奥へ続く
   // 街並み(窓が陽光を反射する)
   const winT = (() => { const c = cv(64, 96), g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 96);
     for(let y = 0; y < 8; y++) for(let x = 0; x < 4; x++){ g.fillStyle = r() < .22 ? '#fff1b8' : '#9ec9ea'; g.fillRect(x * 16 + 3, y * 12 + 3, 10, 7); }
@@ -1417,20 +1412,19 @@ const TW = { sparks: [], doors: [], open: 0 };
   const pastel = [0xf3d9c4, 0xdbe6c8, 0xc9dcee, 0xf1e4b6, 0xe9c9d3, 0xd5d0e8, 0xf6f0e4];
   const procBld = new T3.Group(), slots = []; s.add(procBld);
   const bld = (x, z, w, h, d, c, far) => { const t = winT.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4.5)); box(procBld, w, h, d, lam(c, { map: t }), x, h / 2, z); slots.push({ x, z, w, h, far }); };
-  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * .6, 5.2 + r() * 1.3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0], false);
-  for(const [zr, hmin] of [[-62, 12], [-78, 18], [-94, 24]]){ let x = -50 + r() * 4; while(x < 50){ const w = 5.5 + r() * 2.5; bld(x + w / 2, zr, w, hmin + r() * 12, 6, pastel[(r() * pastel.length) | 0], true); x += w + 1.8; } }
+  for(const side of [-1, 1]) for(let z = 8; z > -128; z -= 7.6) bld(side * (10.5 + r() * 1.5), z - r() * .6, 5.2 + r() * 1.3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0], false);
   {   // フリー素材のビルに差し替え(通り沿いは低めのビル、遠くの街並みは高層ビル)
-    const near = 'abcdefghijklmn'.split('').map(k => 'building-' + k), far = 'abcde'.split('').map(k => 'building-skyscraper-' + k);
+    const near = 'abcdefghijklmn'.split('').map(k => 'building-' + k).concat('abcde'.split('').map(k => 'building-skyscraper-' + k)), far = near;
     Promise.all(slots.map((sl, i) => loadModel(sl.far ? far[i % far.length] : near[i % near.length]))).then(list => {
       if(list.some(o => !o)) return;
       const g = new T3.Group(); town.add(g);
-      list.forEach((o, i) => { const sl = slots[i], w = fitModel(o, { w: sl.w }); w.position.set(sl.x, 0, sl.z); w.rotation.y = sl.far ? 0 : (sl.x < 0 ? Math.PI / 2 : -Math.PI / 2); g.add(w); });
+      list.forEach((o, i) => { const sl = slots[i], w = fitModel(o, { w: sl.w }); w.scale.y = 1.5 + (i % 5) * .35; w.position.set(sl.x, 0, sl.z); w.rotation.y = sl.far ? 0 : (sl.x < 0 ? Math.PI / 2 : -Math.PI / 2); g.add(w); });
       procBld.visible = false;
     });
   }
   // 並木・街灯
   const procTrees = new T3.Group(), treeSpots = []; s.add(procTrees);
-  for(let z = -3; z > -31; z -= 5) for(const side of [-1, 1]){
+  for(let z = -3; z > -122; z -= 5) for(const side of [-1, 1]){
     const bloom = false, tg = procTrees;   // ピンクの桜は図形のまま。ほかの木はモデルに差し替え
     cyl(tg, .15, .2, 2.2, lam(0x7a5a3c), side * 4.6, 1.1, z, 6);
     const crown = new T3.Mesh(new T3.SphereGeometry(1.4, 10, 8), lam(bloom ? 0xf6b8cc : 0x66b95c)); crown.position.set(side * 4.6, 3.1, z); tg.add(crown);
@@ -1448,7 +1442,7 @@ const TW = { sparks: [], doors: [], open: 0 };
     const fl = ['flower_redA', 'flower_yellowA', 'flower_purpleA', 'plant_bush'];
     Promise.all(Array.from({ length: 44 }, (_, i) => loadModel(fl[i % fl.length]))).then(list => {
       if(list.some(o => !o)) return;
-      list.forEach((o, i) => { const w = fitModel(o, { h: i % 4 === 3 ? .9 : .5 }); w.position.set((i % 2 ? 1 : -1) * (5.4 + r() * 2.4), 0, -1 - r() * 30); town.add(w); });
+      list.forEach((o, i) => { const w = fitModel(o, { h: i % 4 === 3 ? .9 : .5 }); w.position.set((i % 2 ? 1 : -1) * (5.4 + r() * 2.4), 0, -1 - r() * 115); town.add(w); });
     });
   }
   // 病院の入口(カメラの後ろ: ロビー → ガラスの自動ドア → 車寄せ)
@@ -1466,10 +1460,10 @@ const TW = { sparks: [], doors: [], open: 0 };
   s.add(new T3.AmbientLight(0xdfe9ff, .72));
   const dl = new T3.DirectionalLight(0xfff0cc, .62); dl.position.set(12, 30, 30); s.add(dl);
   // きらめき(空気中の光の粒と、川面の反射)
-  for(let i = 0; i < 120; i++){
+  for(let i = 0; i < 150; i++){
     const m = new T3.SpriteMaterial({ map: GLOW, color: 0xfff2c0, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0 });
-    const sp = new T3.Sprite(m), water = i < 55;
-    sp.position.set(water ? (r() - .5) * 40 : (r() - .5) * 26, water ? -.3 : .6 + r() * 9, water ? -36 - r() * 13 : -4 - r() * 38);
+    const sp = new T3.Sprite(m), water = false;
+    sp.position.set(water ? (r() - .5) * 40 : (r() - .5) * 26, water ? -.3 : .6 + r() * 9, -4 - r() * 115);
     const sz = .25 + r() * .6; sp.scale.set(sz, sz, 1); s.add(sp);
     TW.sparks.push({ m, ph: r() * 6.28, sp: .8 + r() * 1.8, k: water ? .95 : .65 });
   }

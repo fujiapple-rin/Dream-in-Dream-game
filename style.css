@@ -120,3 +120,10 @@ body.mobile:not(.fsOk) #rules .fshint{display:block}
 .sbtn.need{animation:needL 1s ease-in-out infinite;border-color:#ffe9a0;color:#ffe9a0;font-size:16px}
 .sbtn.need.act{animation:none}
 @keyframes needL{0%,100%{box-shadow:0 0 0 rgba(255,233,160,0)}50%{box-shadow:0 0 14px 4px rgba(255,233,160,.8)}}
+
+/* 真エンディングの後: 終了画面・タイトル画面は、街並みの上に表示 */
+#end.scene{background:transparent;color:#16283a}
+#end.scene h1,#end.scene .e,body.cleared #title h1,body.cleared #title p{text-shadow:0 0 8px #fff,0 0 3px #fff}
+#end.scene .btn{color:#16283a;background:rgba(255,255,255,.75);border-color:#16283a}
+body.cleared #title{background:transparent;color:#16283a}
+body.cleared #title .warn{color:#2a3b4d}

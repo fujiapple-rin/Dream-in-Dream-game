@@ -12,9 +12,11 @@ const DEBUG = !!window.DD_DEBUG;
    1990s look: vertex snapping (頂点を粗い格子に吸着させる)
    テクスチャはパースペクティブ補正のまま(ゆがませない)。
    ============================================================ */
+const PV_PLAIN = T3.ShaderChunk.project_vertex;   // 吸着なし(鮮明な場面用)
 T3.ShaderChunk.project_vertex += `
 gl_Position.xy = floor(gl_Position.xy / gl_Position.w * vec2(256.0, 192.0) + 0.5) / vec2(256.0, 192.0) * gl_Position.w;
 `;
+const PV_SNAP = T3.ShaderChunk.project_vertex;
 
 /* ============================================================
    run control (lets the debug panel jump anywhere safely)
@@ -364,7 +366,7 @@ const post = new T3.ShaderMaterial({
         vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
         float dd = length(q * vec2(0.75, 1.45));
         float r = mix(1.4, 0.0, uNarrow);
-        c *= smoothstep(r, r * 0.35, dd);
+        c *= mix(1.0, smoothstep(r, r * 0.35, dd), clamp(uNarrow * 6.0, 0.0, 1.0));
       }
       c *= uBright;
       gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
@@ -373,12 +375,12 @@ const post = new T3.ShaderMaterial({
 });
 const postScene = new T3.Scene(), postCam = new T3.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 postScene.add(new T3.Mesh(new T3.PlaneGeometry(2, 2), post));
-const VIEW = { lowH: 240 };
+const VIEW = { lowH: 240, crisp: false, prevFilter: 1 };
 function resize(){
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  const lh = VIEW.lowH > 0 ? VIEW.lowH : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
+  const lh = VIEW.crisp ? h : VIEW.lowH > 0 ? VIEW.lowH : Math.round(h / 2), lw = Math.max(1, Math.round(lh * w / h));
   rt.setSize(lw, lh); rt.depthTexture.image.width = lw; rt.depthTexture.image.height = lh;
   post.uniforms.uRes.value.set(w, h); post.uniforms.uLow.value.set(lw, lh);
 }
@@ -696,8 +698,10 @@ function drawECG(phase){
 /* ============================================================
    materials / helpers
    ============================================================ */
-const lam = (color, o = {}) => new T3.MeshLambertMaterial(Object.assign({ color }, o));
-const basic = (color, o = {}) => new T3.MeshBasicMaterial(Object.assign({ color }, o));
+let CRISP_BUILD = false;   // true の間に作った素材は、頂点の吸着なし(鮮明)で描く
+const crispMat = m => { if(CRISP_BUILD) m.customProgramCacheKey = () => 'crisp'; return m; };
+const lam = (color, o = {}) => crispMat(new T3.MeshLambertMaterial(Object.assign({ color }, o)));
+const basic = (color, o = {}) => crispMat(new T3.MeshBasicMaterial(Object.assign({ color }, o)));
 const blackMat = basic(0x030303);
 function box(parent, w, h, d, m, x, y, z){ const me = new T3.Mesh(new T3.BoxGeometry(w, h, d), m); me.position.set(x, y, z); parent.add(me); return me; }
 function tubeBetween(parent, a, b, r, m){   // 2点を結ぶ細い管(点滴のチューブ用)
@@ -1221,6 +1225,152 @@ function hospPlace(near){
     HP.doc.lookAt(1.0, 0, -2.4); HP.mom.lookAt(1.45, 0, -1.55); HP.dad.lookAt(1.45, 0, -1.55); HP.nurse.visible = false;
   }
 }
+
+/* ============================================================
+   WARD(真エンディング: 目を覚ました病室。主人公の部屋と、同じ間取り)
+   ============================================================ */
+const ward = new T3.Scene(); ward.background = new T3.Color(0xcfd8d4);
+const WD = {};
+(function buildWard(){
+  CRISP_BUILD = true;
+  const s = ward;
+  const wallM = lam(0xe9e6da), floorM = lam(0xbdb8a8), ceilM = lam(0xf2f2ee), metal = lam(0xc4c9cc), wood = lam(0xcdbf9f);
+  plane(s, 2 * W, 2 * D, floorM, 0, 0, 0, 0, -Math.PI / 2);
+  plane(s, 2 * W, 2 * D, ceilM, 0, H, 0, 0, Math.PI / 2);
+  plane(s, 2 * D, H, wallM, -W, H / 2, 0, Math.PI / 2);
+  plane(s, 2 * W, H, wallM, 0, H / 2, D, Math.PI);
+  plane(s, 2.15, H, wallM, -.725, H / 2, -D);
+  plane(s, .65, H, wallM, 1.475, H / 2, -D);
+  plane(s, .8, .4, wallM, .75, 2.2, -D);
+  plane(s, 2.1, H, wallM, W, H / 2, -1.35, -Math.PI / 2);
+  plane(s, 1.1, H, wallM, W, H / 2, 1.85, -Math.PI / 2);
+  plane(s, 1.6, .8, wallM, W, .4, .5, -Math.PI / 2);
+  plane(s, 1.6, .3, wallM, W, 2.25, .5, -Math.PI / 2);
+  // 窓の外(明るい朝)とカーテン
+  plane(s, 1.6, 1.3, basic(0xeaf5ff), W + .15, 1.45, .5, -Math.PI / 2);
+  for(const z of [-.32, 1.32]) box(s, .05, 1.34, .05, metal, W - .02, 1.45, z);
+  box(s, .05, .05, 1.64, metal, W - .02, 2.1, .5); box(s, .05, .05, 1.64, metal, W - .02, .8, .5);
+  box(s, .06, 1.5, .32, lam(0xa9c4b0), W - .06, 1.4, -.4); box(s, .06, 1.5, .32, lam(0xa9c4b0), W - .06, 1.4, 1.4);
+  // 廊下(ドアの向こう)
+  plane(s, 2.4, 2.6, floorM, .75, 0, -3.7, 0, -Math.PI / 2);
+  plane(s, 2.4, 2.6, ceilM, .75, H, -3.7, 0, Math.PI / 2);
+  plane(s, 2.6, H, wallM, -.45, H / 2, -3.7, Math.PI / 2);
+  plane(s, 2.6, H, wallM, 1.95, H / 2, -3.7, -Math.PI / 2);
+  plane(s, 2.4, H, wallM, .75, H / 2, -5, 0);
+  plane(s, 1, 1.2, basic(0xf6fff8), .75, 1.4, -4.98);
+  box(s, .9, .03, .4, basic(0xffffff), .75, H - .02, -3.7);
+  // ベッド(部屋のベッドと同じ位置)
+  box(s, 1.02, .34, 2.1, metal, -1.28, .17, 1.33);
+  box(s, 1.02, .85, .05, metal, -1.28, .425, 2.375);
+  box(s, .97, .18, 2.04, lam(0xe8ecee), -1.28, .43, 1.33);
+  box(s, .99, .1, 1.45, lam(0x9db7c8), -1.28, .57, .96);
+  box(s, .55, .1, .32, lam(0xf6f6f2), -1.28, .58, 2.18).rotation.x = .1;
+  for(const x of [-.745, -1.775]){ box(s, .03, .03, 1.5, metal, x, .98, 1.2); box(s, .03, .03, 1.5, metal, x, .76, 1.2); for(let i = 0; i < 6; i++) box(s, .025, .38, .025, metal, x, .8, .5 + i * .28); }
+  // 点滴スタンド・モニター
+  const iv = new T3.Group(); iv.position.set(-.68, 0, .62); s.add(iv);
+  cyl(iv, .012, .012, 1.9, metal, 0, .95, 0, 6); box(iv, .5, .025, .03, metal, 0, .03, 0); box(iv, .03, .025, .5, metal, 0, .03, 0); box(iv, .3, .02, .02, metal, 0, 1.88, 0);
+  for(const x of [-.13, .13]) box(iv, .1, .17, .028, basic(0xcfe0e0, { transparent: true, opacity: .75 }), x, 1.74, 0);
+  tubeBetween(iv, new T3.Vector3(0, 1.64, 0), new T3.Vector3(-.27, .66, .28), .005, basic(0xdfe9e6));
+  box(s, .4, .5, .38, lam(0xd8d4c8), -.52, .25, 2.17);
+  box(s, .36, .28, .16, lam(0x2e3236), -.52, .66, 2.17);
+  plane(s, .32, .22, basic(0xffffff, { map: ECG.tex }), -.602, .66, 2.17, -Math.PI / 2);
+  // 机と椅子・テレビ・時計・ホワイトボード・掲示・絵・お見舞いの花(部屋の物と同じ位置)
+  box(s, .6, .04, 1.3, wood, 1.5, .73, -1.3); for(const [x, z] of [[1.25, -1.9], [1.25, -.7], [1.75, -1.9], [1.75, -.7]]) box(s, .04, .71, .04, metal, x, .36, z);
+  box(s, .4, .05, .4, lam(0x5a6a7a), 1.02, .45, -1.35); box(s, .04, .4, .4, lam(0x5a6a7a), .83, .7, -1.35); for(const [x, z] of [[.86, -1.52], [.86, -1.18], [1.18, -1.52], [1.18, -1.18]]) box(s, .03, .43, .03, metal, x, .22, z);
+  box(s, 1.0, .4, .45, lam(0x8b6f55), -.45, .2, -2.15); box(s, .95, .55, .06, lam(0x16181b), -.45, .78, -2.2);
+  { const c = cyl(s, .22, .22, .04, lam(0xf2f2ee), -.45, 1.86, -2.37, 24); c.rotation.x = Math.PI / 2; box(s, .02, .16, .01, lam(0x222222), -.45, 1.9, -2.34); box(s, .12, .02, .01, lam(0x222222), -.4, 1.86, -2.34); }
+  box(s, .55, .75, .03, lam(0xf8f8f6), -1.3, 1.45, -2.38); for(let i = 0; i < 4; i++) box(s, .4, .012, .01, lam(0x445566), -1.3, 1.65 - i * .14, -2.36);
+  box(s, .03, .8, .6, lam(0xf4f4f0), -1.78, 1.5, .85); box(s, .035, .14, .6, lam(0x6a9ac0), -1.78, 1.84, .85);
+  box(s, .6, .4, .03, lam(0xb6cfc4), -1.28, 1.72, 2.37);
+  box(s, .5, .5, .5, lam(0xd8d4c8), 1.55, .25, 2.1); cyl(s, .06, .05, .25, lam(0xd8e4ea), 1.55, .63, 2.1, 8);
+  for(const [x, y, z, c] of [[1.55, .84, 2.1, 0xf0a0b8], [1.5, .8, 2.06, 0xf6e27a], [1.6, .8, 2.14, 0xffffff], [1.52, .88, 2.14, 0xf0a0b8]]){ const f = new T3.Mesh(new T3.SphereGeometry(.05, 8, 6), lam(c)); f.position.set(x, y, z); s.add(f); }
+  // 光
+  s.add(new T3.AmbientLight(0x9aa6a0, .7));
+  box(s, 1.2, .03, .5, basic(0xffffff), 0, H - .02, -.2);
+  const pl = new T3.PointLight(0xf4fff8, .55, 9, 1.2); pl.position.set(0, 2.15, -.2); s.add(pl);
+  const cp = new T3.PointLight(0xeafff0, .7, 5); cp.position.set(.75, 2.2, -3.7); s.add(cp);
+  const sun = new T3.DirectionalLight(0xfff0d8, .4); sun.position.set(6, 3, .5); s.add(sun);
+  // 人(黒い人が立っていた場所に、先生・看護師・お見舞いの人がいる)
+  const nurse = { top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62 };
+  const at = (o, x, z, tx, tz) => { const g = makePerson(o); g.position.set(x, 0, z); g.lookAt(tx, 0, tz); s.add(g); return g; };
+  WD.nurseCorner = at(Object.assign({}, nurse, { hair: 0x3a2c24 }), -1.42, -1.55, BED_EYE.x, BED_EYE.z);
+  WD.doctor = at({ top: 0xdedede, bottom: 0x3a3d44, coat: 0xe6e6e2, hair: 0x232323, h: 1.76 }, .75, -3.0, BED_EYE.x, BED_EYE.z);
+  WD.nurseBed = at(nurse, -.45, .85, BED_EYE.x, BED_EYE.z); WD.nurseBed.userData.head.rotation.x = .3;
+  { const sg = new T3.Group(); sg.position.set(.24, 1.0, .2); sg.rotation.x = .5; WD.nurseBed.add(sg);
+    const sx = (m, r, len, z) => { const c = cyl(sg, r, r, len, m, 0, 0, z, 8); c.rotation.x = Math.PI / 2; return c; };
+    sx(basic(0xe4ecee), .02, .17, 0); sx(basic(0x9fe0d0), .014, .13, 0); sx(basic(0xd8dcde), .004, .12, .14); }
+  WD.visitor = at({ top: 0x8a7f6a, bottom: 0x3e3b38, hair: 0x2a2018, h: 1.66 }, 1.5, .62, BED_EYE.x, BED_EYE.z);
+  WD.mom = at({ top: 0x6e5d63, bottom: 0x3b3438, hair: 0x2a2220, h: 1.58 }, -.38, 1.3, BED_EYE.x, BED_EYE.z); WD.mom.userData.head.rotation.x = .3;
+  WD.dad = at({ top: 0x3d4450, bottom: 0x2b2e33, hair: 0x353535, h: 1.72 }, -.58, 1.75, BED_EYE.x, BED_EYE.z); WD.dad.userData.head.rotation.x = .3;
+  WD.docSit = makeSitter({ top: 0xe6e6e2, bottom: 0x3a3d44, hair: 0x232323 }); WD.docSit.position.set(1.02, 0, -1.35); WD.docSit.rotation.y = Math.PI / 2; s.add(WD.docSit);
+  CRISP_BUILD = false;
+})();
+
+/* ============================================================
+   TOWN(退院して、病院を出ると広がる、陽光きらめく街並み。クリア後のタイトルの背景にもなる)
+   ============================================================ */
+const town = new T3.Scene(); town.fog = new T3.Fog(0xd6e8f2, 45, 135);
+const TW = { sparks: [], doors: [], open: 0 };
+(function buildTown(){
+  CRISP_BUILD = true;
+  const s = town, r = rng(21), GLOW = glowTex();
+  // 空と太陽
+  { const c = cv(8, 256), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, '#4f9fe6'); gr.addColorStop(.3, '#8ec8f2'); gr.addColorStop(.5, '#fff2d4'); gr.addColorStop(1, '#fff2d4');
+    g.fillStyle = gr; g.fillRect(0, 0, 8, 256);
+    const t = new T3.CanvasTexture(c); t.minFilter = t.magFilter = T3.LinearFilter;
+    s.add(new T3.Mesh(new T3.SphereGeometry(125, 20, 14), new T3.MeshBasicMaterial({ map: t, side: T3.BackSide, fog: false }))); }
+  const sunM = new T3.SpriteMaterial({ map: GLOW, color: 0xfff1b8, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false });
+  const sun = new T3.Sprite(sunM); sun.position.set(-30, 34, -95); sun.scale.set(80, 80, 1); s.add(sun);
+  const sunC = new T3.Sprite(new T3.SpriteMaterial({ map: GLOW, color: 0xffffff, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false })); sunC.position.copy(sun.position); sunC.scale.set(20, 20, 1); s.add(sunC);
+  // 地面・道・川・橋
+  plane(s, 90, 80, lam(0xdad4c6), 0, 0, -20, 0, -Math.PI / 2);
+  plane(s, 7, 46, lam(0xeee7d6), 0, .006, -8, 0, -Math.PI / 2);
+  for(const x of [-6.5, 6.5]) plane(s, 5, 46, lam(0x8cc07a), x, .004, -8, 0, -Math.PI / 2);
+  plane(s, 90, 9, lam(0x6d7078), 0, .01, -18, 0, -Math.PI / 2);
+  for(let i = -4; i <= 4; i++) box(s, .5, .02, 3.2, lam(0xf4f4f0), i * .9, .02, -18);
+  plane(s, 90, 15, lam(0x6fb3dc, { emissive: 0x1b4a66 }), 0, -.45, -43, 0, -Math.PI / 2);
+  for(const z of [-35.6, -50.4]) box(s, 90, 1.1, .8, lam(0xb8b2a4), 0, -.3, z);
+  box(s, 7.4, .3, 15.4, lam(0xe0dccf), 0, -.05, -43);
+  for(const x of [-3.6, 3.6]) box(s, .18, .9, 15.4, lam(0xf1ede2), x, .55, -43);
+  // 街並み(窓が陽光を反射する)
+  const winT = (() => { const c = cv(64, 96), g = c.getContext('2d'); g.fillStyle = '#ffffff'; g.fillRect(0, 0, 64, 96);
+    for(let y = 0; y < 8; y++) for(let x = 0; x < 4; x++){ g.fillStyle = r() < .22 ? '#fff1b8' : '#9ec9ea'; g.fillRect(x * 16 + 3, y * 12 + 3, 10, 7); }
+    const t = new T3.CanvasTexture(c); t.wrapS = t.wrapT = T3.RepeatWrapping; t.minFilter = T3.LinearMipmapLinearFilter; t.magFilter = T3.LinearFilter; return t; })();
+  const pastel = [0xf3d9c4, 0xdbe6c8, 0xc9dcee, 0xf1e4b6, 0xe9c9d3, 0xd5d0e8, 0xf6f0e4];
+  const bld = (x, z, w, h, d, c) => { const t = winT.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4.5)); box(s, w, h, d, lam(c, { map: t }), x, h / 2, z); };
+  for(const side of [-1, 1]) for(let z = 8; z > -33; z -= 7.6) bld(side * (11 + r() * 3), z - r() * 1.5, 6 + r() * 3, 7 + r() * 13, 6.5, pastel[(r() * pastel.length) | 0]);
+  for(let i = 0; i < 26; i++){ const x = -42 + i * 3.4 + r() * 2; bld(x, -62 - r() * 30, 5 + r() * 4, 14 + r() * 28, 6, pastel[(r() * pastel.length) | 0]); }
+  // 並木・街灯
+  for(let z = -3; z > -31; z -= 5) for(const side of [-1, 1]){
+    cyl(s, .15, .2, 2.2, lam(0x7a5a3c), side * 4.6, 1.1, z, 6);
+    const crown = new T3.Mesh(new T3.SphereGeometry(1.4, 10, 8), lam((z / 5 | 0) % 3 === 0 ? 0xf6b8cc : 0x66b95c)); crown.position.set(side * 4.6, 3.1, z); s.add(crown);
+    cyl(s, .05, .06, 3.4, lam(0x5a5f66), side * 3.3, 1.7, z - 2.5, 6);
+  }
+  // 病院の入口(カメラの後ろ: ロビー → ガラスの自動ドア → 車寄せ)
+  const lw = lam(0x9aa6a2);
+  plane(s, 9, 9, lam(0xcfcfc6), 0, .002, 6, 0, -Math.PI / 2);
+  plane(s, 9, 9, lam(0xdfe3e0), 0, 3.4, 6, 0, Math.PI / 2);
+  plane(s, 9, 3.4, lw, -4.5, 1.7, 6, Math.PI / 2); plane(s, 9, 3.4, lw, 4.5, 1.7, 6, -Math.PI / 2);
+  plane(s, 2.9, 3.4, lw, -3.05, 1.7, 1.5, 0); plane(s, 2.9, 3.4, lw, 3.05, 1.7, 1.5, 0); plane(s, 3.2, .8, lw, 0, 3.0, 1.5, 0);
+  box(s, .12, 2.6, .12, lam(0xc9ced0), -1.6, 1.3, 1.5); box(s, .12, 2.6, .12, lam(0xc9ced0), 1.6, 1.3, 1.5);
+  const glass = basic(0xcfe9f5, { transparent: true, opacity: .32, side: T3.DoubleSide, depthWrite: false });
+  for(const x of [-.8, .8]){ const g = new T3.Group(); g.position.set(x, 1.3, 1.45); g.add(new T3.Mesh(new T3.PlaneGeometry(1.6, 2.6), glass)); box(g, 1.6, .06, .05, lam(0xc9ced0), 0, 1.27, 0); TW.doors.push(g); s.add(g); }
+  box(s, 10, .25, 5, lam(0xf2f2ee), 0, 3.5, -1.0); for(const x of [-4.3, 4.3]) cyl(s, .18, .18, 3.5, lam(0xe8e8e2), x, 1.75, -3, 10);
+  box(s, 2.4, .5, .5, lam(0x8b6f55), -3, .25, 8); box(s, .8, 1.2, .8, lam(0x5a8a5a), 3.2, .6, 8.5);
+  // 光(日なた)
+  s.add(new T3.AmbientLight(0xdfe9ff, .9));
+  const dl = new T3.DirectionalLight(0xfff0cc, .9); dl.position.set(12, 30, 30); s.add(dl);
+  // きらめき(空気中の光の粒と、川面の反射)
+  for(let i = 0; i < 120; i++){
+    const m = new T3.SpriteMaterial({ map: GLOW, color: 0xfff2c0, blending: T3.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0 });
+    const sp = new T3.Sprite(m), water = i < 55;
+    sp.position.set(water ? (r() - .5) * 40 : (r() - .5) * 26, water ? -.3 : .6 + r() * 9, water ? -36 - r() * 13 : -4 - r() * 38);
+    const sz = .25 + r() * .6; sp.scale.set(sz, sz, 1); s.add(sp);
+    TW.sparks.push({ m, ph: r() * 6.28, sp: .8 + r() * 1.8, k: water ? .95 : .65 });
+  }
+  CRISP_BUILD = false;
+})();
 
 /* ============================================================
    RAILWAY CROSSING
@@ -1912,6 +2062,16 @@ function loop(now){
     if(frame % 2 === 0) drawECG(ph);
     HP.doc.userData.head.rotation.y = Math.sin(t * .7) * .08;
     HP.dad.userData.head.rotation.x = .1 + Math.sin(t * .4) * .03;
+  } else if(S.scene === 'ward'){
+    scene = ward;
+    const period = 1.03, ph = (t % period) / period;
+    if(S.beeping && t - beepAt > period){ beepAt = t - (t % period); tone(1046, .09, .12); }
+    if(frame % 2 === 0) drawECG(ph);
+  } else if(S.scene === 'town'){
+    scene = town;
+    TW.doors[0].position.x = -.8 - 1.6 * TW.open; TW.doors[1].position.x = .8 + 1.6 * TW.open;
+    TW.sparks.forEach(o => { o.m.opacity = o.k * Math.pow(Math.max(0, Math.sin(t * o.sp + o.ph)), 8); });
+    if(S.townIdle){ V.pos.set(Math.sin(t * .13) * .6, 1.75 + Math.sin(t * .21) * .05, -6 + Math.sin(t * .09) * .8); V.yaw = Math.sin(t * .11) * .05; V.pitch = .04; }
   } else if(S.scene === 'cross'){
     scene = cross;
     const on = Math.floor(t * 2.3) % 2;
@@ -1919,6 +2079,15 @@ function loop(now){
     CR.reds.forEach((l, i) => l.intensity = (i + on) % 2 ? .9 : .15);
   }
 
+  {   // 病室(目覚めた後)と街並みは、がびがびのフィルターなし・低解像度なし・頂点の吸着なしで、鮮明に
+    const crisp = S.scene === 'ward' || S.scene === 'town';
+    if(crisp !== VIEW.crisp){
+      VIEW.crisp = crisp;
+      if(crisp){ VIEW.prevFilter = post.uniforms.uFilter.value; post.uniforms.uFilter.value = 0; setGrain(false); } else post.uniforms.uFilter.value = VIEW.prevFilter;
+      resize();
+    }
+    T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
+  }
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;
   const shk = V.shake + (S.chaseShake || 0);
@@ -2447,42 +2616,62 @@ async function trueTail(){
   await say('母「良かった！」', 2200);
   await say('(母の、泣く声。)', 2600);
   await say('父「心配させて。お前は、3カ月も寝たままだったんだぞ」', 4400);
-  await say('僕が目を覚ますと、そこは病院の病室のベッドの上だった。', 4800);
+  await say('目を覚ますと、そこは病院の病室のベッドの上だった。', 4800);
   await trueWake();
 }
-/* 目を覚ますと、病院の病室。黒い人は、夜中に見回りに来ていた看護師や先生、見舞いの家族だった */
+/* 目を覚ました瞬間から、画面は鮮明。病室を見回すと、自分の部屋と同じ間取り。黒い人が立っていた場所に、先生・看護師・お見舞いの人がいる */
 async function trueWake(){
-  S.mode = 'cut'; S.scene = 'hospital'; skippable = true;
-  setSkip(() => start(trueLines));
-  hospPlace(true);
-  V.pos.set(0, .98, .78); V.yaw = -.2; V.pitch = 1.2; V.roll = -.2; V.tfov = V.fov = 62; V.breathe = 1;   // 目を開けると、病院の天井
-  post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.2; post.uniforms.uBright.value = .8;
+  S.mode = 'cut'; S.scene = 'ward'; skippable = true;
+  setSkip(() => start(trueDischarge));
+  V.pos.set(-1.28, .98, 1.5); V.yaw = .35; V.pitch = 1.2; V.roll = 0; V.tfov = V.fov = 66; V.breathe = 1;   // 目を開けると、病院の天井
+  post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.4; post.uniforms.uBright.value = 1;
   S.beeping = true;
   setFade(1, '#000');
   await sleep(500);
-  fade(0, 2600);
-  const fam = aimAt(new T3.Vector3(.78, 1.45, .05)), nur = aimAt(new T3.Vector3(-.8, 1.45, .1));
-  lookTo(fam.yaw, fam.pitch, 6500);
-  await tween(4200, e => { post.uniforms.uNarrow.value = .95 - e * .32; });
-  await wait(3600);
-  await lookTo(nur.yaw, nur.pitch, 3800);
-  await wait(3200);
+  fade(0, 2400);
+  await tween(3800, e => { post.uniforms.uNarrow.value = .95 * (1 - e); post.uniforms.uBlur.value = 1.4 * (1 - e); });
+  await wait(1200);
+  await Promise.all([moveTo(new T3.Vector3(-1.28, 1.18, 1.45), 2400), lookTo(.1, -.05, 2400)]);   // 起き上がる
+  const look = (x, y, z, ms) => { const m = aimAt(new T3.Vector3(x, y, z)); return lookTo(m.yaw, m.pitch, ms); };
+  await look(.75, 1.2, -2.4, 1800); await say('ドアの位置。', 1800);
+  await look(1.8, 1.45, .5, 1800); await say('窓の位置。', 1800);
+  await look(1.3, .9, -1.3, 1500); await say('机の場所まで。', 2200);
+  await lookTo(0, -.05, 1500);
+  await say('……僕の部屋と、同じ間取りだ。', 3600);
+  await say('黒い人影が立っていた場所に、人が立っている。', 4200);
+  for(const [x, y, z] of [[-1.42, 1.5, -1.55], [.75, 1.5, -3.0], [1.02, 1.1, -1.35], [-.45, 1.4, .85], [1.5, 1.5, .62], [-.4, 1.4, 1.3]]){ await look(x, y, z, 1500); await wait(1300); }
   skippable = false;
-  fade(1, 3200);
-  await tween(3200, e => { post.uniforms.uNarrow.value = .63 + e * .37; });
-  await sleep(1200);
-  await trueLines();
+  await fade(1, 2200, '#000');
+  await trueDischarge();
 }
-async function trueLines(){
-  S.beeping = false; S.scene = 'room'; resetView(); stopAllSnd();
+/* 退院。病院を出ると、目の前に、陽光がきらめく街並みが広がる */
+const TOWN_END = { pos: new T3.Vector3(0, 1.75, -6), pitch: .04, fov: 72 };
+async function trueDischarge(){
+  S.mode = 'cut'; S.scene = 'town'; S.townIdle = false; skippable = true;
+  setSkip(() => start(trueFinish));
+  stopAllSnd(); S.beeping = false; TW.open = 0;
+  V.pos.set(0, 1.55, 5.2); V.yaw = 0; V.pitch = 0; V.roll = 0; V.tfov = V.fov = 62; V.breathe = 1;
+  post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = .8;
   setFade(1, '#000');
-  setSkip(null);
-  skippable = true;
-  await say('ずっと、眠りたかった。', 3800);
-  await say('誰かに、起こしてほしかった。', 4600);
+  await say('退院の日。', 2400);
+  fade(0, 2200);
+  for(let i = 0; i < 14; i++) step(.2, i * .7);
+  const sm = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
+  await tween(11000, e => {
+    const z = 5.2 + (TOWN_END.pos.z - 5.2) * e;
+    V.pos.set(0, 1.55 + (TOWN_END.pos.y - 1.55) * e, z); V.pitch = TOWN_END.pitch * e; V.fov = V.tfov = 62 + (TOWN_END.fov - 62) * e;
+    TW.open = sm(3.8, 2.2, z);   // 自動ドアが開く
+    post.uniforms.uBright.value = .8 + 1.2 * sm(3.2, 1.0, z) - .95 * sm(1.0, -3.5, z);   // 外の光で、まぶしく
+  });
   skippable = false;
-  await sleep(900);
-  S.trueEnd = true;
+  await wait(2500);
+  await trueFinish();
+}
+async function trueFinish(){
+  setSkip(null); skippable = false;
+  S.beeping = false; S.scene = 'town'; TW.open = 1; S.trueEnd = true; markCleared();
+  post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = 1;
+  V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
   await finishMorning();
 }
 async function showNews(onSkip){
@@ -2510,8 +2699,9 @@ async function finishMorning(){
   S.mode = 'end';
   show('news', false);
   $('endE').textContent = S.trueEnd ? 'TRUE END' : 'END';
+  $('end').classList.toggle('scene', !!S.trueEnd);
   show('end', true);
-  setFade(1, '#000');
+  if(S.trueEnd){ S.townIdle = true; setFade(0); } else setFade(1, '#000');
   humTo(0);
 }
 
@@ -2529,7 +2719,16 @@ function gameOver(reason, info, note){
 }
 
 /* ---- screens ---- */
-function toTitle(){ return start(async () => { setFade(1, '#000'); S.mode = 'title'; show('title', true); }); }
+const CLEAR_KEY = 'dd_true_clear';
+const isCleared = () => { try{ return localStorage.getItem(CLEAR_KEY) === '1'; }catch(_){ return false; } };
+function markCleared(){ try{ localStorage.setItem(CLEAR_KEY, '1'); }catch(_){} document.body.classList.add('cleared'); }
+function townTitle(){   // 真エンディングをクリアした後は、タイトル画面の背景が、ラストの街並みになる
+  S.scene = 'town'; S.townIdle = true; TW.open = 1;
+  V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
+  post.uniforms.uBright.value = 1; post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0;
+  setFade(0);
+}
+function toTitle(){ return start(async () => { if(isCleared()) townTitle(); else setFade(1, '#000'); S.mode = 'title'; show('title', true); }); }
 $('title').addEventListener('click', () => { audioInit(); show('title', false); show('rules', true); });
 $('rules').addEventListener('click', () => start(async () => { newGame(); await memorize(); }));
 $('bRetry').onclick = () => start(async () => { setFade(1, '#000'); newGame(true); await memorize(); });   // 同じ夜を、部屋を覚えるところからやり直す
@@ -2539,6 +2738,7 @@ $('bPauseTitle').onclick = () => { setPause(false); toTitle(); };
 $('bEndTitle').onclick = toTitle;
 
 S.active = new Set(); rebuild(); drawClock(3600, false, false);
+if(!DEBUG && isCleared()){ document.body.classList.add('cleared'); townTitle(); }
 requestAnimationFrame(loop);
 
 /* ============================================================
@@ -2587,6 +2787,7 @@ function buildDebug(){
       <button data-e="hospital">病院(夢なのに眠る)</button>
       <button data-e="news">真エンディング(新聞記事)</button>
       <button data-e="caught">黒い人に追いつかれる</button>
+      <button data-e="town">退院(街並み)</button>
       <button data-e="wake">真エンディング(病室で目覚める)</button>
       <button data-e="trueend">真エンディング(黒い人→新聞→言葉)</button>
     </div>
@@ -2650,6 +2851,7 @@ function buildDebug(){
     }
     if(en === 'clear') start(async () => { S.night = NIGHTS; await morning(); });
     if(en === 'hospital') start(async () => { S.scene = 'room'; rebuild(); setFade(0); await hospitalEnding(); });
+    if(en === 'town') start(async () => { S.scene = 'room'; rebuild(); await trueDischarge(); });
     if(en === 'wake') start(async () => { S.scene = 'room'; rebuild(); setFade(1, '#000'); await trueTail(); });
     if(en === 'trueend') start(async () => { S.night = NIGHTS; S.trueEnd = true; await trueEnding(); });
     if(en === 'caught') start(async () => { S.scene = 'room'; S.active = new Set(['shadowBed']); rebuild(); setFade(0); R.sBed.position.set(-1.0, 0, .9); await caughtEnding(R.sBed); });

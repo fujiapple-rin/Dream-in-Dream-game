@@ -1636,9 +1636,9 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, fl: 0, tf: null, scr: null
   {   // 左手の甲の点滴(テープとチューブ)
     R.ivArm = new T3.Group(); R.ivArm.visible = false; L_.group.add(R.ivArm);
     const tube = basic(0xdfe9e6);
-    box(R.ivArm, .06, .007, .035, lam(0xf0f0ec), 0, .034, .08);
-    tubeBetween(R.ivArm, new T3.Vector3(.012, .036, .08), new T3.Vector3(.014, .076, .15), .0035, tube);
-    tubeBetween(R.ivArm, new T3.Vector3(.014, .076, .15), new T3.Vector3(.03, .13, .7), .0035, tube);
+    box(R.ivArm, .075, .012, .06, basic(0xfafaf6), 0, .052, .07);
+    tubeBetween(R.ivArm, new T3.Vector3(.0, .058, .07), new T3.Vector3(.02, .1, .17), .006, tube);
+    tubeBetween(R.ivArm, new T3.Vector3(.02, .1, .17), new T3.Vector3(.05, .22, .75), .006, tube);
   }
   // スマホ(画面が手のひらの反対=カメラ側を向く)
   const phone = new T3.Group();
@@ -1825,7 +1825,7 @@ const ANOM = [
   { id: 'curtainFeet', d: 3, at: [1.72, .3, 1.58], name: 'カーテンの下から、足が見えていた', on(){ R.feet.visible = true; } },
   { id: 'mugTwo', d: 3, at: AT.mug, name: 'マグカップが、二つになっていた', on(){ R.mug2.visible = true; } },
   { id: 'paintingPerson', d: 3, at: AT.pic, name: '絵の中に、人が立っていた', on(){ R.paintMat.map = TX.paintPerson; } },
-  { id: 'plantDead', d: 3, at: AT.plant, name: '観葉植物が、枯れていた', on(){ R.leafM.color.setHex(0x6e5a3c); R.stemM.color.setHex(0x5a4a34); } },
+  { id: 'plantDead', d: 3, at: AT.plant, name: '観葉植物が、枯れていた', on(){ R.leafM.color.setHex(0xb08a3a); R.stemM.color.setHex(0x8f6e3a); R.plant.scale.set(1, .82, 1); } },
   { id: 'rugRotated', d: 3, at: [.2, 0, -.6], name: 'ラグが、斜めにずれていた', on(){ R.rug.rotation.z = .55; } },
   { id: 'acGone', d: 3, at: [-1.7, 2.1, -1.2], name: 'エアコンが、なくなっていた', on(){ R.ac.visible = false; } },
   { id: 'glassTilted', d: 3, at: [.05, .4, -.68], name: 'グラスが、傾いたまま止まっていた', on(){ R.glass.rotation.z = .6; } },
@@ -1845,7 +1845,7 @@ const ANOM = [
   { id: 'ivArm', hosp: true, d: 2, at: [-1.28, .6, 1.0], name: '左手に、点滴のチューブがつながっていた', on(){ R.ivArm.visible = true; } },
   { id: 'syringeWall', hosp: true, d: 2, at: [-1.7, 1.15, 1.9], name: '壁から、注射器が突き出ていた', on(){ R.syr[0].visible = true; } },
   { id: 'syringesWall', hosp: true, d: 3, at: [-1.7, 1.5, 1.2], name: '壁から、注射器が何本も突き出ていた', on(){ R.syr.forEach(g => g.visible = true); } },
-  { id: 'wardLight', hosp: true, d: 2, at: [0, 2.3, -.2], name: '天井の灯りが、病室のような白い蛍光灯になっていた', on(){ setLights('ward'); } },
+  { id: 'wardLight', hosp: true, maxHour: 2, d: 2, at: [0, 2.3, -.2], name: '天井の灯りが、病室のような白い蛍光灯になっていた', on(){ setLights('ward'); } },
   { id: 'monitorBeep', hosp: true, d: 2, at: [-1.0, 1.3, 1.2], name: '規則正しい電子音(ピッ、ピッ)が、どこからか聞こえていた', on(){}, start(){ every('monitor', 1030, () => tone(1046, .09, .1)); } },
   { id: 'shadowWindow', role: 'visitor', d: 1, black: true, at: AT.win, name: 'ベランダに、黒い人影が立っていた', on(){ R.sWin.visible = true; } },
   // --- 数字・文字
@@ -1897,8 +1897,9 @@ const ANOM_BY = Object.fromEntries(ANOM.map(a => [a.id, a]));
 function growStart(id){ const g = R.grow[id]; g.n = g.start; g.items.forEach((m, i) => m.visible = i < g.start); }
 const DIFF = { 1: [1], 2: [1, 2], 3: [2], 4: [2, 3], 5: [3, 2], 6: [3] };
 function pickAnomaly(){
+  const hourOk = a => !a.maxHour || S.hour <= a.maxHour;   // 朝と見分けがつかない異変は、夜(午前1〜2時)だけ
   if(S.idx === S.forceHosp){   // 毎晩、病院関連の異変を必ず1回
-    const hp = ANOM.filter(a => a.hosp && !S.used.has(a.id));
+    const hp = ANOM.filter(a => a.hosp && !S.used.has(a.id) && hourOk(a));
     if(hp.length){
       const hw = a => S.seen.has(a.id) ? .2 : 1;
       let r = Math.random() * hp.reduce((t, a) => t + hw(a), 0), ph = hp[hp.length - 1];
@@ -1918,7 +1919,7 @@ function pickAnomaly(){
   }
   const hh = Math.min(6, S.hour + stage() - 1);
   const okDiff = a => (DIFF[hh] || [1, 2, 3]).includes(a.d);
-  const elig = a => !(a.minNight && stage() < a.minNight);   // 「散らかり」を前提にした異変は第2夜から
+  const elig = a => !(a.minNight && stage() < a.minNight) && hourOk(a);   // 「散らかり」を前提にした異変は第2夜から
   let pool = ANOM.filter(a => elig(a) && !S.used.has(a.id) && (okDiff(a) || (a.black && S.hour >= 3 && Math.random() < .5)));
   if(!pool.length) pool = ANOM.filter(a => elig(a) && !S.used.has(a.id));
   if(!pool.length) pool = ANOM.filter(elig);

@@ -2455,13 +2455,13 @@ async function hospitalEnding(){
   await fade(1, 3000);
   await sleep(3000);
   stopSnd('heart', .4);
-  S.scene = 'hospital';
-  V.pos.set(0, .98, .78); V.yaw = -.2; V.pitch = 1.2; V.roll = -.2; V.tfov = V.fov = 62; V.breathe = 1;   // 目を開けると、病院の天井
+  S.scene = 'ward';   // 真エンディングと同じ病室(自室と同じ間取り)
+  V.pos.set(-1.28, .98, 1.5); V.yaw = .35; V.pitch = 1.2; V.roll = -.2; V.tfov = V.fov = 62; V.breathe = 1;   // 目を開けると、病院の天井
   post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.2; post.uniforms.uBright.value = .8;
   S.beeping = true;
   await sleep(500);
   fade(0, 2600);
-  lookTo(-.42, .06, 7000);
+  { const fm = aimAt(new T3.Vector3(-.48, 1.4, 1.5)); lookTo(fm.yaw, fm.pitch, 7000); }   // ベッドの脇の、先生・母・父の方へ
   await tween(4200, e => { post.uniforms.uNarrow.value = .95 - e * .32; });
   skippable = true;
   const blink = async () => {
@@ -2470,7 +2470,7 @@ async function hospitalEnding(){
     await sleep(120);
     await tween(420, e => { post.uniforms.uNarrow.value = 1 - (1 - n0) * e; });
   };
-  HP.mom.userData.head.rotation.x = .25;
+  WD.mom.userData.head.rotation.x = .25;
   const lines = [
     ['医者「……検査の結果ですが、脳に大きな損傷は見られません」', 3400],
     ['医者「ただ、意識が戻らないんです」', 2800],
@@ -2482,7 +2482,7 @@ async function hospitalEnding(){
   ];
   for(let i = 0; i < lines.length; i++){
     if(i === 2 || i === 5) blink();
-    if(i === 4) tween(2000, e => { HP.mom.userData.head.rotation.x = .25 + e * .3; });
+    if(i === 4) tween(2000, e => { WD.mom.userData.head.rotation.x = .25 + e * .3; });
     await say(lines[i][0], lines[i][1]);
   }
   await wait(1200);

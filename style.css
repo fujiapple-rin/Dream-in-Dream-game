@@ -113,3 +113,7 @@ body.mobile #hint{color:rgba(255,255,255,.9);text-shadow:0 0 3px #000,0 0 2px #0
 body.mobile.fsOk:not(.isFs) #fsBtn{display:block}
 #rules .fshint{display:none;margin-top:1em;font-size:clamp(11px,1.7vw,13px);color:#888;letter-spacing:.08em}
 body.mobile:not(.fsOk) #rules .fshint{display:block}
+
+.sbtn.need{animation:needL 1s ease-in-out infinite;border-color:#ffe9a0;color:#ffe9a0;font-size:16px}
+.sbtn.need.act{animation:none}
+@keyframes needL{0%,100%{box-shadow:0 0 0 rgba(255,233,160,0)}50%{box-shadow:0 0 14px 4px rgba(255,233,160,.8)}}

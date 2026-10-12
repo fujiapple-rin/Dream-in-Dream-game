@@ -1414,7 +1414,7 @@ glc.addEventListener('wheel', e => { if(!S.look) return; e.preventDefault(); V.t
 const keys = {};
 addEventListener('keydown', e => { if(e.target.closest && e.target.closest('input')) return; keys[e.key.toLowerCase()] = true; });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-$('bLight').onclick = () => { S.flash = !S.flash; $('bLight').classList.toggle('act', S.flash); };
+$('bLight').onclick = () => { S.flash = !S.flash; $('bLight').classList.toggle('act', S.flash); $('bLight').textContent = S.flash ? 'ライト ON' : 'ライト'; };
 $('bZoom').onclick = () => { V.tfov = V.tfov < 60 ? 70 : 30; $('bZoom').classList.toggle('act', V.tfov < 60); };
 $('bSound').onclick = () => { A.muted = !A.muted; setVolume(A.vol); $('bSound').textContent = A.muted ? '音 OFF' : '音 ON'; };
 function aimAt(p, from = V.pos){
@@ -1749,7 +1749,7 @@ function loop(now){
     S.redK = (S.redK || 0) + (rt_ - (S.redK || 0)) * Math.min(1, dg * 3.5);
     S.redTarget = 0;
     const K = S.redK;   // 赤み・揺れ(時間基準)。時計の音の消え方は S.chaseK(距離基準)のまま
-    post.uniforms.uRed.value = K * (.72 + .28 * S.pulse);
+    post.uniforms.uRed.value = 0;   // 画面の赤みは無し(揺れだけ残す)
     S.chaseShake = K * (.009 + .03 * S.pulse);
   }
   if(S.look && !PAUSED){
@@ -1921,7 +1921,8 @@ async function roundReady(quick){
   S.mode = 'play'; S.look = true; tools(true);
   startAnomalySounds();
   if(S.firstHint){ $('hint').style.opacity = 1; S.firstHint = false; vset(() => $('hint').style.opacity = 0, 7000); }
-  if(S.dark && !S.darkHinted){ S.darkHinted = true; vset(() => sayNow('暗くて見えない。スマホのライトを使おう。', 4200), 2400); }
+  $('bLight').classList.toggle('need', !!S.dark && !S.flash);   // 暗い部屋では「ライト」ボタンを点滅させる
+  if(S.dark && !S.darkHinted){ S.darkHinted = true; vset(() => sayNow('暗くて見えない。スマホのライトを使おう。', 5200), 2400); }
   if(quick === true) await sleep(800);
   if(S.mode === 'play') hud(true);
 }
@@ -2502,7 +2503,7 @@ function buildDebug(){
     if(a === 'actClock') start(async () => { S.scene = 'room'; rebuild(); setFade(0); S.mode = 'trans'; await smashClock(); await enterRoom(); });
     if(a === 'actCheek') start(async () => { S.scene = 'room'; rebuild(); setFade(0); S.mode = 'trans'; await slapCheek(); await enterRoom(); });
     if(a === 'actSleep') start(async () => { S.scene = 'room'; rebuild(); setFade(0); S.mode = 'trans'; await sleepFade(); await enterRoom(); });
-    if(a === 'flash'){ S.flash = !S.flash; $('bLight').classList.toggle('act', S.flash); b.classList.toggle('on', S.flash); }
+    if(a === 'flash'){ S.flash = !S.flash; $('bLight').classList.toggle('act', S.flash); $('bLight').textContent = S.flash ? 'ライト ON' : 'ライト'; b.classList.toggle('on', S.flash); }
     if(look){
       ensureRoom();
       const p = new T3.Vector3(...ANOM_BY[look].at), am = aimAt(p);

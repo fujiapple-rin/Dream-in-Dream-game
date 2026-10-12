@@ -2048,6 +2048,7 @@ async function startSleep(){
   S.mode = 'trans'; S.look = false; endDrag(); hud(false); tools(false);
   $('hint').style.opacity = 0; $('bWake').style.display = '';
   vset(() => { $('hint').innerHTML = HINT_HTML; }, 1200);
+  S.hour = 1; S.idx = 0;   // 覚える時間は午後11時(hour=0)。最初のラウンドは午前1時から数える(6ラウンド=異変の並び6個)
   setSkip(() => start(round));
   await sleepFade();
   await sleep(500);

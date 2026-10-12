@@ -1389,7 +1389,7 @@ function armUpdate(t){
     const hand = s === 1 && tool && r > 0;
     if(hand){
       let tp, tr, tc;
-      if(tool === 'phone'){ tp = [.02, -.17 + .03 * (1 - r), -.40];  tr = [1.1, -.1, Math.PI]; tc = .9; }
+      if(tool === 'phone'){ tp = [.14, -.15 + .03 * (1 - r), -.40]; tr = [.95, .38, Math.PI]; tc = .9; }
       else if(tool === 'hit'){ const h = ARM.hit; tp = [.10, -.04 - .16 * h, -.42 - .20 * h]; tr = [.95 - .75 * h, -.25, -.4 * (1 - h)]; tc = 1.0; }
       else { tp = [.03, -.19, -.40]; tr = [.35, -.12, -1.5]; tc = 1.25; }
       let w = r;

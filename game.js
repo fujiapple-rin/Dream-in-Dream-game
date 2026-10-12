@@ -1992,7 +1992,7 @@ function chaseUpdate(dt){
     const k = clamp((4.6 - minD) / (4.6 - .85), 0, 1);
     S.hbT -= dt;
     S.chaseTarget = k;
-    if(S.hbT <= 0){ beatOnce(.6 + 1.7 * k); S.hbT = 1.15 - .75 * k; S.pulse = 1; }   // 速さは約52回/分 → 約160回/分(元に戻した)。音は大きく
+    if(S.hbT <= 0){ beatOnce((.6 + 1.7 * k) * 1.5); S.hbT = 1.15 - .75 * k; S.pulse = 1; }   // 速さは約52回/分 → 約160回/分(元に戻した)。音は大きく
   } else S.hbT = 0;
 }
 function beatOnce(v){

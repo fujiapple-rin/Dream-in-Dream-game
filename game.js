@@ -1363,9 +1363,9 @@ const WD = {};
   for(const [x, y, z, c] of [[1.55, .84, 2.1, 0xf0a0b8], [1.5, .8, 2.06, 0xf6e27a], [1.6, .8, 2.14, 0xffffff], [1.52, .88, 2.14, 0xf0a0b8]]){ const f = new T3.Mesh(new T3.SphereGeometry(.05, 8, 6), lam(c)); f.position.set(x, y, z); procFl.add(f); }
   swapModel(procFl, 'pottedPlant', { h: .95 }, 1.55, 2.1, 0);
   // 光
-  s.add(new T3.AmbientLight(0xb4c0ba, 1.05));
+  s.add(new T3.AmbientLight(0x9aa6a0, .7));
   box(s, 1.2, .03, .5, basic(0xffffff), 0, H - .02, -.2);
-  const pl = new T3.PointLight(0xf4fff8, .95, 9, 1.2); pl.position.set(0, 2.15, -.2); s.add(pl);
+  const pl = new T3.PointLight(0xf4fff8, .55, 9, 1.2); pl.position.set(0, 2.15, -.2); s.add(pl);
   const cp = new T3.PointLight(0xeafff0, .7, 5); cp.position.set(.75, 2.2, -3.7); s.add(cp);
   const sun = new T3.DirectionalLight(0xfff0d8, .4); sun.position.set(6, 3, .5); s.add(sun);
   // 人(黒い人が立っていた場所に、先生・看護師・お見舞いの人がいる)
@@ -1988,7 +1988,7 @@ function shadowCaught(o){
 /* 顔を見た瞬間、画面が激しく揺れて、セリフなしで暗転、ゲームオーバーへ */
 async function caughtEnding(o){
   S.mode = 'cut'; S.scene = 'room'; skippable = true;
-  const over = () => start(async () => gameOver('夢から、覚めなかった。', '黒い人影に、追いつかれた。'));
+  const over = () => start(async () => gameOver('川で、亡くなっていた。', '黒い人影に、追いつかれた。'));
   setSkip(over);
   S.ticking = false; humTo(0, .05); S.hold = true; S.chaseK = 1; S.redK = 1;
   const am = aimAt(new T3.Vector3(o.position.x, 1.62, o.position.z));
@@ -1999,7 +1999,16 @@ async function caughtEnding(o){
   skippable = false;
   V.shake = 0; setFade(1, '#000');
   await sleep(500);
-  gameOver('夢から、覚めなかった。', '黒い人影に、追いつかれた。');
+  S.hold = false;
+  loopNoise('river', { type: 'lowpass', freq: 520, vol: .16, fadeIn: 2 });   // 暗闇の中、川の流れる音
+  await sleep(2600);
+  skippable = true;
+  await say('川のほとりで、男性が亡くなっているのが見つかった。', 4200);
+  skippable = false;
+  sirenStart();
+  await sleep(7000);
+  stopSnd('siren', 3); stopSnd('river', 3); await sleep(3200);
+  gameOver('川で、亡くなっていた。', '黒い人影に、追いつかれた。');
 }
 function setClutter(level){ R.clutter.forEach(c => { c.o.visible = c.lv <= level; c.o.position.copy(c.p0); c.o.rotation.y = c.r0; }); }
 function resetExtras(){
@@ -2187,7 +2196,7 @@ function loop(now){
     T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
   }
   { const nr = S.scene === 'town' ? .4 : .1; if(camera.near !== nr){ camera.near = nr; camera.updateProjectionMatrix(); } }   // 遠くの地面のちらつき(Zファイティング)を防ぐ
-  { const grit = S.scene === 'ward' || S.scene === 'town'; if(grit !== VIEW.grit){ VIEW.grit = grit; resize(); } post.uniforms.uGrit.value = grit ? 1 : 0; }   // 真エンディングは、明るいまま、もっとがびがび
+  { const grit = S.scene === 'town'; if(grit !== VIEW.grit){ VIEW.grit = grit; resize(); } post.uniforms.uGrit.value = grit ? 1 : 0; }   // 強いがびがびは、退院後の街並みだけ(病室は元のフィルター)
   post.uniforms.uVig.value = S.scene === 'town' ? 0 : 1;   // 四隅が黒くなる効果は、退院後はなし
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;
@@ -2250,7 +2259,7 @@ function cleanup(){
 }
 function newGame(keepNight){
   S.trueEnd = false;
-  if(!keepNight){ S.night = 1; S.mistakes = 0; S.seen = new Set(); }
+  if(!keepNight){ S.night = 1; S.mistakes = 0; S.seen = new Set(); S.wakeIntro = true; }   // 新しいゲームの最初だけ、目覚める演出
   S.seenNow = new Set();   // この夜に出した異変(やり直しなら、出し直し)
   S.hour = 1; S.idx = 0; S.used = new Set();
   const lo = stage() >= 3 ? 3 : 2, hi = stage() >= 3 ? 5 : 4, p = .55 + .04 * (stage() - 1);
@@ -2384,11 +2393,24 @@ async function memorize(){
   setSkip(() => start(memorizeReady));
   await center('第' + S.night + '夜\n午後11時', 1900);
   S.ticking = true;
-  await fade(0, 1500);
+  if(S.wakeIntro){ S.wakeIntro = false; await wakeIntro(); } else await fade(0, 1500);
   await memorizeReady();
 }
+/* 最初の目覚め: ぼやけた視界で天井 → まばたき → 視界が晴れて、起き上がる */
+async function wakeIntro(){
+  V.pos.set(BED_EYE.x, .9, BED_EYE.z); V.pitch = 1.0; V.yaw = .25; V.breathe = 1;
+  post.uniforms.uNarrow.value = .95; post.uniforms.uBlur.value = 1.4;
+  fade(0, 1800);
+  await tween(3000, e => { post.uniforms.uNarrow.value = .95 - e * .4; post.uniforms.uBlur.value = 1.4 * (1 - e * .7); });
+  await tween(240, e => { post.uniforms.uNarrow.value = .55 + e * .45; });   // まばたき
+  await sleep(100);
+  await tween(380, e => { post.uniforms.uNarrow.value = 1 - e * .5; });
+  await sleep(500);
+  await Promise.all([moveTo(BED_EYE.clone(), 2200), lookTo(0, -.05, 2200), tween(2200, e => { post.uniforms.uNarrow.value = .5 * (1 - e); post.uniforms.uBlur.value = .42 * (1 - e); })]);   // 起き上がる
+  resetView();
+}
 async function memorizeReady(){
-  setSkip(null);
+  setSkip(null); resetView();
   S.scene = 'room'; setFade(0); S.ticking = true;
   S.mode = 'memorize'; S.look = true; tools(true);
   $('hint').innerHTML = (S.night > 1 ? '少し散らかってきた。<br>' : '') + '部屋の様子を、よく覚えておこう。<br>準備ができたら「眠る」。<br>' + (document.body.classList.contains('mobile') ? 'ドラッグで見渡す' : '右クリックを押しながら動かして見渡す') + ' / ' + (document.body.classList.contains('mobile') ? 'ズームボタンで拡大' : 'ホイールで拡大');

@@ -1356,12 +1356,8 @@ function armUpdate(t){
   const sm_ = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
   let r = ARM.reach, tool = ARM.tool, fm = false, dP = null, dR = null;
   if(!(tool && r > 0) && ARM.fl > 0){ tool = 'phone'; fm = true; r = sm_(ARM.fl); }   // ライト用の持ち上げ(他の道具が優先)
-  if(fm && wantF){   // 机のスマホへ手を伸ばす向き(カメラ空間)
-    const d = new T3.Vector3(-.5, .54, 2.09).sub(camera.position).applyQuaternion(camera.quaternion.clone().invert());
-    const dist = d.length(); d.normalize();
-    const rd = clamp(dist - .1, .3, .5);
-    dP = [d.x * rd + .04, d.y * rd - .02, d.z * rd];
-    dR = [Math.atan2(d.y, Math.hypot(d.x, d.z)), Math.atan2(-d.x, -d.z), 0];
+  if(fm && wantF){   // 手に取る前の姿勢:視界の右下へ手を下ろして伸ばす(机は視界の外にあることが多い)
+    dP = [.34, -.37, -.38]; dR = [.55, .22, 0];
   }
   // 立っているか(ベッドから離れた/目線が高い) → 腕を体の横に下ろす
   const dtA = ARM.t === null ? 0 : Math.min(.1, t - ARM.t); ARM.t = t;

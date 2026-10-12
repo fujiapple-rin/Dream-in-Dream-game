@@ -4,8 +4,8 @@
 
 ## 遊ぶ
 
-- パソコン版: https://fujiapple-rin.github.io/Dream-in-Dream/
-- スマホ版(横画面): https://fujiapple-rin.github.io/Dream-in-Dream/mobile.html
+- パソコン版: https://fujiapple-rin.github.io/Dream-in-Dream-game/
+- スマホ版(横画面): https://fujiapple-rin.github.io/Dream-in-Dream-game/mobile.html
 
 インターネットに接続した状態で、ブラウザで開いてください。精神的に重い描写を含みます。
 

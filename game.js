@@ -1341,6 +1341,9 @@ function armUpdate(t){
   const wantF = S.flash && S.scene === 'room' ? 1 : 0;
   ARM.fl = clamp(ARM.fl + (wantF ? dtF / .4 : -dtF / .35) * (wantF ? 1 : (ARM.fl > 0 ? 1 : 0)), 0, 1);
   S.flashK = wantF ? clamp((ARM.fl - .65) / .3, 0, 1) : 0;
+  // 机の上のスマホを手に取った間は、机から消す(消えるのは「なくなっていた」異変の時と同じ扱い)
+  if(ARM.fl > .05 && R.phoneGroup.visible){ R.phoneGroup.visible = false; ARM.deskHid = true; }
+  else if(ARM.fl <= 0 && ARM.deskHid){ ARM.deskHid = false; if(!S.active.has('phoneGone')) R.phoneGroup.visible = true; }
   const show = ARM.on && S.scene === 'room' && V.fov > 50 && !$('phone').classList.contains('on');
   armRoot.visible = show;
   if(!show) return false;

@@ -360,10 +360,12 @@ const post = new T3.ShaderMaterial({
       else if(uFilter > 0.0){
         // 鮮明な場面用の、弱いフィルター(少しだけ、ざらつき・走査線・にじみ・周辺減光)
         vec3 cl = tap(luv - vec2(1.0 / uLow.x, 0.0));
-        c = mix(c, cl, 0.14 * uFilter);
+        c = mix(c, cl, 0.22 * uFilter);
+        c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 0.94);
         c += (h(lp + floor(uTime * 8.0) * 17.3) - 0.5) * 0.05 * uFilter;
-        float sl = fract(vUv.y * uRes.y / 3.0);
-        c *= 1.0 - 0.09 * uFilter * (1.0 - sin(sl * 3.14159));
+        c = mix(c, floor(c * 31.0 + bayer4(lp)) / 31.0, 0.7 * uFilter);   // 元のフィルターと同じ、粗い色の階調(弱め)
+        float sl = fract(vUv.y * uRes.y / 2.5);
+        c *= 1.0 - 0.14 * uFilter * (1.0 - sin(sl * 3.14159));
         float d = distance(vUv, vec2(0.5));
         c *= mix(1.0, mix(1.0 - 0.3 * uFilter, 1.0, smoothstep(0.9, 0.3, d)), uVig);
       }

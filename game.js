@@ -231,6 +231,24 @@ function loopNoise(name, { type = 'lowpass', freq = 400, Q = 1, vol = .2, fadeIn
 }
 function every(name, ms, fn){ stopSnd(name); fn(); const id = vevery(fn, ms); snd[name] = () => vclear(id); }
 function windStart(){ loopNoise('wind', { type: 'bandpass', freq: 500, Q: .6, vol: .5, fadeIn: 1.2, lfo: .25, lfoDepth: 220 }); }
+/* 真エンディング(退院後の街並み)の環境音: 穏やかな風と、鳥のさえずり */
+function chirp(base, when = 0){
+  if(!A.ctx) return;
+  const t = A.ctx.currentTime + when, o = A.ctx.createOscillator(), g = A.ctx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(base, t);
+  o.frequency.exponentialRampToValueAtTime(base * (1.3 + Math.random() * .5), t + .06); o.frequency.exponentialRampToValueAtTime(base * .9, t + .13);
+  env(g, t, .05, .01, .14);
+  o.connect(g).connect(A.out); o.start(t); o.stop(t + .17);
+}
+function birdsStart(){
+  stopSnd('birds'); let id = 0;
+  const f = () => {
+    if(A.ctx){ const n = 2 + (Math.random() * 4 | 0), b = 2600 + Math.random() * 1800; for(let i = 0; i < n; i++) chirp(b * (1 + (Math.random() - .5) * .15), i * (.11 + Math.random() * .05)); }
+    id = vset(f, 900 + Math.random() * 2800);
+  };
+  f(); snd.birds = () => vclear(id);
+}
+function townSoundsStart(){ loopNoise('windTown', { type: 'bandpass', freq: 650, Q: .5, vol: .1, fadeIn: 3, lfo: .12, lfoDepth: 200 }); birdsStart(); }
 function alarmStart(vol = .3){ every('alarm', 1000, () => { for(let i = 0; i < 4; i++) tone(1760, .07, vol, 'square', i * .13); }); }
 function breathingStart(){
   stopSnd('breath'); let iv = 1500, id = 0;
@@ -1379,10 +1397,8 @@ const WD = {};
   { const sg = new T3.Group(); sg.position.set(.24, 1.0, .2); sg.rotation.x = .5; WD.nurseBed.add(sg);
     const sx = (m, r, len, z) => { const c = cyl(sg, r, r, len, m, 0, 0, z, 8); c.rotation.x = Math.PI / 2; return c; };
     sx(basic(0xe4ecee), .02, .17, 0); sx(basic(0x9fe0d0), .014, .13, 0); sx(basic(0xd8dcde), .004, .12, .14); }
-  WD.visitor = at({ top: 0x8a7f6a, bottom: 0x3e3b38, hair: 0x2a2018, h: 1.66 }, 1.5, .62, BED_EYE.x, BED_EYE.z);
   WD.mom = at({ top: 0x6e5d63, bottom: 0x3b3438, hair: 0x2a2220, h: 1.58 }, -.38, 1.3, BED_EYE.x, BED_EYE.z); WD.mom.userData.head.rotation.x = .3;
   WD.dad = at({ top: 0x3d4450, bottom: 0x2b2e33, hair: 0x353535, h: 1.72 }, -.58, 1.75, BED_EYE.x, BED_EYE.z); WD.dad.userData.head.rotation.x = .3;
-  WD.docSit = makeSitter({ top: 0xe6e6e2, bottom: 0x3a3d44, hair: 0x232323 }); WD.docSit.position.set(1.02, 0, -1.35); WD.docSit.rotation.y = Math.PI / 2; s.add(WD.docSit);
   CRISP_BUILD = false;
 })();
 
@@ -2754,18 +2770,18 @@ async function trueWake(){
   S.beeping = true;
   setFade(1, '#000');
   await sleep(500);
-  fade(0, 2400);
-  await tween(3800, e => { post.uniforms.uNarrow.value = .95 * (1 - e); post.uniforms.uBlur.value = 1.4 * (1 - e); });
-  await wait(1200);
-  await Promise.all([moveTo(new T3.Vector3(-1.28, 1.18, 1.45), 2400), lookTo(.1, -.05, 2400)]);   // 起き上がる
+  fade(0, 1800);
+  await tween(2600, e => { post.uniforms.uNarrow.value = .95 * (1 - e); post.uniforms.uBlur.value = 1.4 * (1 - e); });
+  await wait(400);
+  await Promise.all([moveTo(new T3.Vector3(-1.28, 1.18, 1.45), 1800), lookTo(.1, -.05, 1800)]);   // 起き上がる
   const look = (x, y, z, ms) => { const m = aimAt(new T3.Vector3(x, y, z)); return lookTo(m.yaw, m.pitch, ms); };
-  await look(.75, 1.2, -2.4, 1800); await say('ドアの位置。', 1800);
-  await look(1.8, 1.45, .5, 1800); await say('窓の位置。', 1800);
-  await look(1.3, .9, -1.3, 1500); await say('机の場所まで。', 2200);
-  await lookTo(0, -.05, 1500);
-  await say('……僕の部屋と、同じ間取りだ。', 3600);
-  await say('黒い人影が立っていた場所に、人が立っている。', 4200);
-  for(const [x, y, z] of [[-1.42, 1.5, -1.55], [.75, 1.5, -3.0], [1.02, 1.1, -1.35], [-.45, 1.4, .85], [1.5, 1.5, .62], [-.4, 1.4, 1.3]]){ await look(x, y, z, 1500); await wait(1300); }
+  await look(.75, 1.2, -2.4, 1100); await say('ドアの位置。', 1300);
+  await look(1.8, 1.45, .5, 1100); await say('窓の位置。', 1300);
+  await look(1.3, .9, -1.3, 1000); await say('机の場所まで。', 1500);
+  await lookTo(0, -.05, 900);
+  await say('……僕の部屋と、同じ間取りだ。', 2600);
+  await say('黒い人影が立っていた場所に、人が立っている。', 3000);
+  for(const [x, y, z] of [[-1.42, 1.5, -1.55], [.75, 1.5, -3.0], [-.45, 1.4, .85], [-.4, 1.4, 1.3]]){ await look(x, y, z, 900); await wait(600); }
   skippable = false;
   await fade(1, 2200, '#000');
   await trueDischarge();
@@ -2775,7 +2791,7 @@ const TOWN_END = { pos: new T3.Vector3(0, 1.75, -6), pitch: .04, fov: 72 };
 async function trueDischarge(){
   S.mode = 'cut'; S.scene = 'town'; S.townIdle = false; skippable = true;
   setSkip(() => start(trueFinish));
-  stopAllSnd(); S.beeping = false; TW.open = 0;
+  stopAllSnd(); S.beeping = false; TW.open = 0; let amb = false;
   V.pos.set(0, 1.55, 5.2); V.yaw = 0; V.pitch = 0; V.roll = 0; V.tfov = V.fov = 62; V.breathe = 1;
   post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = .8;
   setFade(1, '#000');
@@ -2787,6 +2803,7 @@ async function trueDischarge(){
     const z = 5.2 + (TOWN_END.pos.z - 5.2) * e;
     V.pos.set(0, 1.55 + (TOWN_END.pos.y - 1.55) * e, z); V.pitch = TOWN_END.pitch * e; V.fov = V.tfov = 62 + (TOWN_END.fov - 62) * e;
     TW.open = sm(3.8, 2.2, z);   // 自動ドアが開く
+    if(!amb && TW.open > .4){ amb = true; townSoundsStart(); }   // ドアが開くと、外の風と鳥の声
     post.uniforms.uBright.value = .8 + 1.2 * sm(3.2, 1.0, z) - .95 * sm(1.0, -3.5, z);   // 外の光で、まぶしく
   });
   skippable = false;
@@ -2796,6 +2813,7 @@ async function trueDischarge(){
 async function trueFinish(){
   setSkip(null); skippable = false;
   S.beeping = false; S.scene = 'town'; TW.open = 1; S.trueEnd = true; markCleared();
+  if(!snd.windTown) townSoundsStart();
   post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = 1;
   V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
   await finishMorning();

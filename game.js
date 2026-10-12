@@ -1243,7 +1243,7 @@ const armScene = new T3.Scene();
 const armRoot = new T3.Group(); armScene.add(armRoot);
 const armAmb = new T3.AmbientLight(0x6b6470, .9); armScene.add(armAmb);
 const armLamp = new T3.PointLight(0xffc790, .3, 4, 1.4); armLamp.position.set(0, .35, .1); armRoot.add(armLamp);
-const ARM = { hit: 0, on: true, reach: 0, tool: null, arms: [], phone: null, hammer: null, stand: 0, speed: 0, ph: 0, t: null, last: null };
+const ARM = { hit: 0, on: true, reach: 0, tool: null, fl: 0, tf: null, scr: null, arms: [], phone: null, hammer: null, stand: 0, speed: 0, ph: 0, t: null, last: null };
 (function buildArms(){
   // 肌のテクスチャ(うっすらムラとキメ)
   const c = cv(32, 32), g = c.getContext('2d'), r = rng(12);
@@ -1325,7 +1325,7 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, arms: [], phone: null, ham
   // スマホ(画面が手のひらの反対=カメラ側を向く)
   const phone = new T3.Group();
   box(phone, .072, .0095, .15, lam(0x15161a), 0, -.0055, 0);
-  const scr = plane(phone, .064, .136, basic(0x56687c), 0, -.0108, 0, 0, Math.PI / 2); scr.rotation.x = Math.PI / 2;
+  const scr = plane(phone, .064, .136, basic(0x56687c), 0, -.0108, 0, 0, Math.PI / 2); scr.rotation.x = Math.PI / 2; ARM.scr = scr;
   phone.position.set(0, -.012, -.02); phone.visible = false; R_.hold.add(phone); ARM.phone = phone;
   // ハンマー(握り込む)
   const ham = new T3.Group(); ham.visible = false;
@@ -1336,6 +1336,11 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, arms: [], phone: null, ham
 })();
 
 function armUpdate(t){
+  // ライト:スマホを手に取って持ち上げる(約0.4秒)→ 持ち上がったところで点灯。消す時は点灯を止めてから手を下ろす
+  const dtF = ARM.tf === null ? 0 : Math.min(.1, t - ARM.tf); ARM.tf = t;
+  const wantF = S.flash && S.scene === 'room' ? 1 : 0;
+  ARM.fl = clamp(ARM.fl + (wantF ? dtF / .4 : -dtF / .35) * (wantF ? 1 : (ARM.fl > 0 ? 1 : 0)), 0, 1);
+  S.flashK = wantF ? clamp((ARM.fl - .65) / .3, 0, 1) : 0;
   const show = ARM.on && S.scene === 'room' && V.fov > 50 && !$('phone').classList.contains('on');
   armRoot.visible = show;
   if(!show) return false;
@@ -1344,7 +1349,8 @@ function armUpdate(t){
   armLamp.color.copy(L.ceil.color); armLamp.intensity = S.day ? .2 : .3;
   const xk = clamp(.10 + .12 * camera.aspect, .17, .42);
   const sway = Math.sin(t * 1.1) * .004;
-  const r = ARM.reach, tool = ARM.tool;
+  let r = ARM.reach, tool = ARM.tool;
+  if(!(tool && r > 0) && ARM.fl > 0){ tool = 'phone'; r = ARM.fl * ARM.fl * (3 - 2 * ARM.fl); }   // ライト用の持ち上げ(他の道具が優先)
   // 立っているか(ベッドから離れた/目線が高い) → 腕を体の横に下ろす
   const dtA = ARM.t === null ? 0 : Math.min(.1, t - ARM.t); ARM.t = t;
   const standing = V.pos.y > 1.35 || Math.hypot(V.pos.x - BED_EYE.x, V.pos.z - BED_EYE.z) > .9;
@@ -1371,7 +1377,7 @@ function armUpdate(t){
     const hand = s === 1 && tool && r > 0;
     if(hand){
       let tp, tr, tc;
-      if(tool === 'phone'){ tp = [.02, -.17, -.40]; tr = [1.1, -.1, Math.PI]; tc = .9; }
+      if(tool === 'phone'){ tp = [.02, -.17 + .03 * (1 - r), -.40];  tr = [1.1, -.1, Math.PI]; tc = .9; }
       else if(tool === 'hit'){ const h = ARM.hit; tp = [.10, -.04 - .16 * h, -.42 - .20 * h]; tr = [.95 - .75 * h, -.25, -.4 * (1 - h)]; tc = 1.0; }
       else { tp = [.03, -.19, -.40]; tr = [.35, -.12, -1.5]; tc = 1.25; }
       pos = pos.map((v, i) => v + (tp[i] - v) * r); rot = rot.map((v, i) => v + (tr[i] - v) * r); curl += (tc - curl) * r;
@@ -1385,6 +1391,7 @@ function armUpdate(t){
     a.thumb[0].rotation.x = -curl * .25 - .05; a.thumb[1].rotation.x = -curl * .45;
   }
   ARM.phone.visible = tool === 'phone' && r > .05;
+  ARM.scr.material.color.setHex(S.flashK > .5 ? 0xe8eef8 : 0x56687c);
   ARM.hammer.visible = tool === 'hammer' && r > .05;
   return true;
 }
@@ -1833,7 +1840,7 @@ function loop(now){
 
   // 懐中電灯(スマホのライト)
   const fl = S.flash && S.scene === 'room';
-  R.flash.intensity = fl ? 2.6 : 0;
+  R.flash.intensity = fl ? 2.6 * (S.flashK || 0) : 0;
   if(fl){
     const cp = Math.cos(V.pitch), dx = -Math.sin(V.yaw) * cp, dy = Math.sin(V.pitch), dz = -Math.cos(V.yaw) * cp;
     R.flash.position.set(camera.position.x + .12, camera.position.y - .18, camera.position.z);

@@ -318,12 +318,12 @@ rt.depthTexture = new T3.DepthTexture(4, 4, T3.UnsignedIntType);
 const post = new T3.ShaderMaterial({
   uniforms: {
     tDiffuse: { value: rt.texture }, uTime: { value: 0 }, uRes: { value: new T3.Vector2(1, 1) }, uLow: { value: new T3.Vector2(1, 1) },
-    uNarrow: { value: 0 }, uBlur: { value: 0 }, uBright: { value: 1 }, uFilter: { value: 1 }, uRed: { value: 0 }
+    uNarrow: { value: 0 }, uBlur: { value: 0 }, uBright: { value: 1 }, uFilter: { value: 1 }, uRed: { value: 0 }, uVig: { value: 1 }
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uRes; uniform vec2 uLow;
-    uniform float uNarrow; uniform float uBlur; uniform float uBright; uniform float uFilter; uniform float uRed;
+    uniform float uNarrow; uniform float uBlur; uniform float uBright; uniform float uFilter; uniform float uRed; uniform float uVig;
     varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     float bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
@@ -341,7 +341,7 @@ const post = new T3.ShaderMaterial({
       vec2 lp = floor(vUv * uLow);
       vec2 luv = (lp + 0.5) / uLow;
       vec3 c = tap(luv);
-      if(uFilter > 0.5){
+      if(uFilter > 0.99){
         // composite-video colour bleed
         vec3 cl = tap(luv - vec2(1.0 / uLow.x, 0.0));
         c = mix(c, cl, 0.28);
@@ -354,7 +354,17 @@ const post = new T3.ShaderMaterial({
         float sl = fract(vUv.y * uLow.y);
         c *= 0.8 + 0.2 * sin(sl * 3.14159);
         float d = distance(vUv, vec2(0.5));
-        c *= mix(0.55, 1.0, smoothstep(0.85, 0.32, d));
+        c *= mix(1.0, mix(0.55, 1.0, smoothstep(0.85, 0.32, d)), uVig);
+      }
+      else if(uFilter > 0.0){
+        // 鮮明な場面用の、弱いフィルター(少しだけ、ざらつき・走査線・にじみ・周辺減光)
+        vec3 cl = tap(luv - vec2(1.0 / uLow.x, 0.0));
+        c = mix(c, cl, 0.14 * uFilter);
+        c += (h(lp + floor(uTime * 8.0) * 17.3) - 0.5) * 0.05 * uFilter;
+        float sl = fract(vUv.y * uRes.y / 3.0);
+        c *= 1.0 - 0.09 * uFilter * (1.0 - sin(sl * 3.14159));
+        float d = distance(vUv, vec2(0.5));
+        c *= mix(1.0 - 0.3 * uFilter, 1.0, smoothstep(0.9, 0.3, d));
       }
       if(uRed > 0.0){
         float dr = distance(vUv, vec2(0.5));
@@ -739,43 +749,73 @@ function plane(parent, w, h, m, x, y, z, ry = 0, rx = 0){
   const big = Math.max(w, h) >= 1, sw = big ? Math.max(1, Math.min(64, Math.ceil(w / .5))) : 1, sh = big ? Math.max(1, Math.min(32, Math.ceil(h / .5))) : 1;
   const me = new T3.Mesh(new T3.PlaneGeometry(w, h, sw, sh), m); me.position.set(x, y, z); me.rotation.set(rx, ry, 0); parent.add(me); return me;
 }
-function addHead(g, y, skinM, hairM){
+/* ---- 人物(等身大・8頭身。肩・腕・脚・首・顔をちゃんと作る) ---- */
+function limb(g, r1, r2, len, m, x, y, z){   // 上の端を原点にした、先細りの手足
+  const geo = new T3.CylinderGeometry(r1, r2, len, 8); geo.translate(0, -len / 2, 0);
+  const me = new T3.Mesh(geo, m); me.position.set(x, y, z); g.add(me); return me;
+}
+function addHead(g, y, skinM, hairM){   // y は首の付け根。頭はその上
   const head = new T3.Group(); head.position.y = y; g.add(head);
-  const hd = new T3.Mesh(new T3.SphereGeometry(.11, 8, 6), skinM); hd.scale.set(1, 1.12, 1.05); head.add(hd);
-  const hr = new T3.Mesh(new T3.SphereGeometry(.118, 8, 6, 0, Math.PI * 2, 0, Math.PI * .6), hairM); hr.position.set(0, .015, -.02); hr.rotation.x = -.35; head.add(hr);
+  const hd = new T3.Mesh(new T3.SphereGeometry(.1, 14, 10), skinM); hd.scale.set(.88, 1.12, 1); hd.position.y = .1; head.add(hd);
+  box(head, .125, .08, .14, skinM, 0, .04, .015);   // あご
+  const hr = new T3.Mesh(new T3.SphereGeometry(.108, 14, 10, 0, Math.PI * 2, 0, Math.PI * .55), hairM); hr.position.set(0, .125, -.012); hr.scale.set(.9, 1.05, 1.03); hr.rotation.x = -.25; head.add(hr);
+  box(head, .02, .045, .03, skinM, 0, .095, .1);   // 鼻
+  const eyeM = basic(0x15110f);
+  for(const sx of [-1, 1]){ box(head, .017, .012, .01, eyeM, .034 * sx, .125, .092); const ear = new T3.Mesh(new T3.SphereGeometry(.02, 6, 5), skinM); ear.position.set(.088 * sx, .1, 0); head.add(ear); }
   g.userData.head = head;
   return head;
 }
 function makePerson(o){
-  const g = new T3.Group(), k = (o.h || 1.7) / 1.7;
+  const g = new T3.Group(), k = (o.h || 1.72) / 1.75;
   const M = c => o.black ? blackMat : lam(c);
-  const legM = M(o.bottom), topM = M(o.top), skinM = M(o.skin || 0xa38b7a), hairM = M(o.hair || 0x1c1816);
-  for(const s of [-1, 1]) cyl(g, .07, .06, .82 * k, legM, .09 * s, .41 * k, 0, 6);
-  cyl(g, .18, .16, .64 * k, topM, 0, 1.13 * k, 0, 8);
-  if(o.coat) cyl(g, .19, .26, .78 * k, M(o.coat), 0, .8 * k, 0, 8);
-  for(const s of [-1, 1]){ const a = cyl(g, .052, .045, .62 * k, o.coat ? M(o.coat) : topM, .23 * s, 1.12 * k, 0, 6); a.rotation.z = .07 * s; }
-  cyl(g, .05, .05, .1 * k, skinM, 0, 1.49 * k, 0, 6);
-  addHead(g, 1.62 * k, skinM, hairM);
+  const skinM = M(o.skin || 0xd2a98a), hairM = M(o.hair || 0x1c1816), pantsM = M(o.bottom), topM = M(o.top);
+  const coatM = o.coat ? M(o.coat) : null, sleeveM = coatM || topM;
+  for(const s of [-1, 1]){
+    limb(g, .088, .05, .86 * k, pantsM, .095 * s, .92 * k, 0);
+    box(g, .09, .06, .26, M(0x1a1a1c), .095 * s, .03, .05);
+  }
+  box(g, .31, .2, .21, pantsM, 0, .95 * k, 0);
+  const tor = new T3.Mesh(new T3.CylinderGeometry(.165, .14, .52 * k, 12), sleeveM); tor.scale.set(1.25, 1, .75); tor.position.y = 1.19 * k; g.add(tor);
+  { const sb = new T3.Mesh(new T3.CylinderGeometry(.1, .1, .46, 10), sleeveM); sb.rotation.z = Math.PI / 2; sb.scale.set(1, 1, 1.6); sb.position.y = 1.42 * k; g.add(sb); }   // 丸い肩
+  if(coatM){
+    const c = new T3.Mesh(new T3.CylinderGeometry(.165, .27, .8 * k, 16), coatM); c.scale.set(1.22, 1, .72); c.position.y = 1.03 * k; g.add(c);   // 白衣・制服: 肩から裾へ広がる
+    box(g, .012, .62 * k, .01, M(0xb8b8b2), 0, 1.0 * k, .205 * .72 + .06);   // 前の合わせ目
+    for(const s2 of [-1, 1]){ const lp = box(g, .07, .12, .02, coatM, .06 * s2, 1.46 * k, .1); lp.rotation.z = -.5 * s2; }   // 襟
+  }
+  else { box(g, .09, .28 * k, .012, M(0xf2f2ee), 0, 1.27 * k, .122); box(g, .035, .25 * k, .012, M(o.tie || 0x7a2a30), 0, 1.25 * k, .13); }   // シャツとネクタイ
+  const nk = new T3.Mesh(new T3.CylinderGeometry(.045, .05, .1, 8), skinM); nk.position.y = 1.5 * k; g.add(nk);
+  for(const s of [-1, 1]){   // 腕: 肩 → ひじ → 手
+    const sh = new T3.Group(); sh.position.set(.235 * s, 1.41 * k, 0); sh.rotation.z = .07 * s; g.add(sh);
+    const ball = new T3.Mesh(new T3.SphereGeometry(.06, 8, 6), sleeveM); sh.add(ball);
+    limb(sh, .05, .041, .3 * k, sleeveM, 0, 0, 0);
+    const el = new T3.Group(); el.position.y = -.3 * k; el.rotation.x = -.22; sh.add(el);
+    limb(el, .041, .033, .27 * k, sleeveM, 0, 0, 0);
+    box(el, .07, .1, .035, skinM, 0, -.32 * k, 0);
+  }
+  addHead(g, 1.55 * k, skinM, hairM);
+  if(o.cap) box(g.userData.head, .19, .055, .12, M(0xf6f6f2), 0, .215, -.01);   // 看護帽
   return g;
 }
 function makeSitter(o){
   // faces +z. o.floor: sitting on the floor (cross-legged)
   const g = new T3.Group();
   const M_ = c => o.black ? blackMat : lam(c);
-  const pants = M_(o.bottom), top = M_(o.top), skinM = M_(o.skin || 0xa38b7a), hairM = M_(o.hair || 0x1c1816);
+  const pants = M_(o.bottom), top = M_(o.top), skinM = M_(o.skin || 0xd2a98a), hairM = M_(o.hair || 0x1c1816);
   const hy = o.floor ? .1 : .5;
   if(o.floor){
     for(const s of [-1, 1]){ const l = box(g, .5, .12, .14, pants, 0, .07, .12); l.rotation.y = .45 * s; }
   } else {
     for(const s of [-1, 1]){
-      const th = cyl(g, .075, .07, .44, pants, .1 * s, hy, .2, 6); th.rotation.x = Math.PI / 2;
-      cyl(g, .062, .055, hy, pants, .1 * s, hy / 2, .42, 6);
+      const th = cyl(g, .085, .065, .46, pants, .1 * s, hy, .22, 8); th.rotation.x = Math.PI / 2;
+      cyl(g, .06, .045, hy, pants, .1 * s, hy / 2, .44, 8);
+      box(g, .09, .06, .26, M_(0x1a1a1c), .1 * s, .03, .5);
     }
   }
-  const torso = cyl(g, .18, .17, .6, top, 0, hy + .33, 0, 8); torso.rotation.x = .08;
-  for(const s of [-1, 1]){ const a = cyl(g, .05, .045, .55, top, .23 * s, hy + .36, .12, 6); a.rotation.x = -.6; }
-  cyl(g, .05, .05, .1, skinM, 0, hy + .67, .02, 6);
-  const h = addHead(g, hy + .8, skinM, hairM); h.position.z = .03; h.rotation.x = .15;
+  const torso = new T3.Mesh(new T3.CylinderGeometry(.165, .14, .56, 12), top); torso.scale.set(1.25, 1, .75); torso.position.set(0, hy + .34, 0); torso.rotation.x = .08; g.add(torso);
+  box(g, .46, .07, .2, top, 0, hy + .6, 0);
+  for(const s of [-1, 1]){ const a = limb(g, .05, .04, .5, top, .235 * s, hy + .58, 0); a.rotation.x = -.95; }
+  const nk = new T3.Mesh(new T3.CylinderGeometry(.045, .05, .1, 8), skinM); nk.position.set(0, hy + .7, .02); g.add(nk);
+  const h = addHead(g, hy + .73, skinM, hairM); h.position.z = .03; h.rotation.x = .15;
   return g;
 }
 
@@ -1328,7 +1368,7 @@ const WD = {};
   const cp = new T3.PointLight(0xeafff0, .7, 5); cp.position.set(.75, 2.2, -3.7); s.add(cp);
   const sun = new T3.DirectionalLight(0xfff0d8, .4); sun.position.set(6, 3, .5); s.add(sun);
   // 人(黒い人が立っていた場所に、先生・看護師・お見舞いの人がいる)
-  const nurse = { top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62 };
+  const nurse = { top: 0xf2e4e8, bottom: 0xeeeeec, coat: 0xf4f4f2, hair: 0x2a2220, h: 1.62, cap: true };
   const at = (o, x, z, tx, tz) => { const g = makePerson(o); g.position.set(x, 0, z); g.lookAt(tx, 0, tz); s.add(g); return g; };
   WD.nurseCorner = at(Object.assign({}, nurse, { hair: 0x3a2c24 }), -1.42, -1.55, BED_EYE.x, BED_EYE.z);
   WD.doctor = at({ top: 0xdedede, bottom: 0x3a3d44, coat: 0xe6e6e2, hair: 0x232323, h: 1.76 }, .75, -3.0, BED_EYE.x, BED_EYE.z);
@@ -1391,7 +1431,7 @@ const TW = { sparks: [], doors: [], open: 0 };
   // 並木・街灯
   const procTrees = new T3.Group(), treeSpots = []; s.add(procTrees);
   for(let z = -3; z > -31; z -= 5) for(const side of [-1, 1]){
-    const bloom = (z / 5 | 0) % 3 === 0, tg = bloom ? s : procTrees;   // ピンクの桜は図形のまま。ほかの木はモデルに差し替え
+    const bloom = false, tg = procTrees;   // ピンクの桜は図形のまま。ほかの木はモデルに差し替え
     cyl(tg, .15, .2, 2.2, lam(0x7a5a3c), side * 4.6, 1.1, z, 6);
     const crown = new T3.Mesh(new T3.SphereGeometry(1.4, 10, 8), lam(bloom ? 0xf6b8cc : 0x66b95c)); crown.position.set(side * 4.6, 3.1, z); tg.add(crown);
     if(!bloom) treeSpots.push([side * 4.6, z]);
@@ -1693,7 +1733,7 @@ glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; if(e.po
 glc.addEventListener('pointermove', e => {
   if(!dragging) return;
   const k = .0042 * (V.fov / 70);
-  V.yaw += (e.clientX - lx) * k; V.pitch = clamp(V.pitch - (e.clientY - ly) * k, -1.45, 1.45);
+  V.yaw -= (e.clientX - lx) * k; V.pitch = clamp(V.pitch - (e.clientY - ly) * k, -1.45, 1.45);
   lx = e.clientX; ly = e.clientY;
 });
 const endDrag = () => { dragging = false; glc.classList.remove('drag'); };
@@ -2144,14 +2184,15 @@ function loop(now){
   }
 
   {   // 病室(目覚めた後)と街並みは、がびがびのフィルターなし・低解像度なし・頂点の吸着なしで、鮮明に
-    const crisp = S.scene === 'ward' || S.scene === 'town';
+    const crisp = false;   // フィルター(がびがび)は、病室でも街並みでも、元のままつけておく
     if(crisp !== VIEW.crisp){
       VIEW.crisp = crisp;
-      if(crisp){ VIEW.prevFilter = post.uniforms.uFilter.value; post.uniforms.uFilter.value = 0; setGrain(false); } else post.uniforms.uFilter.value = VIEW.prevFilter;
+      if(crisp){ VIEW.prevFilter = post.uniforms.uFilter.value; post.uniforms.uFilter.value = VIEW.prevFilter > 0 ? .6 : 0; setGrain(false); } else post.uniforms.uFilter.value = VIEW.prevFilter;
       resize();
     }
     T3.ShaderChunk.project_vertex = crisp ? PV_PLAIN : PV_SNAP;
   }
+  post.uniforms.uVig.value = S.scene === 'town' ? 0 : 1;   // 四隅が黒くなる効果は、退院後はなし
   camera.position.copy(V.pos);
   if(V.breathe) camera.position.y += Math.sin(t * 1.1) * .006 * V.breathe;
   const shk = V.shake + (S.chaseShake || 0);

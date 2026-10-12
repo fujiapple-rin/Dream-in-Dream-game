@@ -956,6 +956,10 @@ const BED_EYE = new T3.Vector3(-1.28, 1.18, 1.45);
   R.sDesk = makeSitter({ black: true, top: 0, bottom: 0 }); R.sDesk.position.copy(R.chairPos); R.sDesk.rotation.y = Math.PI / 2; room.add(R.sDesk);
   R.sDoor = makePerson({ black: true, h: 1.76 }); R.sDoor.position.set(.75, 0, -3.0); R.sDoor.lookAt(BED_EYE.x, 0, BED_EYE.z); room.add(R.sDoor);
   R.sWin = makePerson({ black: true, h: 1.74 }); R.sWin.position.set(2.32, 0, .62); R.sWin.lookAt(-1, 0, .62); room.add(R.sWin);
+  // 天井の電気に、仰向けでなく「うつ伏せ」で張り付いている黒い人(顔は下=部屋側を向く)
+  R.sCeil = makePerson({ black: true, h: 1.7 }); R.sCeil.rotation.x = Math.PI / 2; R.sCeil.position.set(0, H - .22, -1.45); room.add(R.sCeil);
+  // 窓の外の黒い人は暗い夜景に溶けてしまうので、背後にぼんやり明るい光を置いて輪郭を浮かび上がらせる
+  plane(R.sWin, 1.5, 2.3, basic(0xc4d4ff, { map: glowTex(), transparent: true, opacity: .75, blending: T3.AdditiveBlending, depthWrite: false, fog: false }), 0, 1.0, -.3, 0, 0);
 
   // ---- 枕元のデジタル時計 ----
   R.dclockPos = new T3.Vector3(-.38, .5575, 2.27);
@@ -1326,7 +1330,7 @@ const ARM = { hit: 0, on: true, reach: 0, tool: null, fl: 0, tf: null, scr: null
   const phone = new T3.Group();
   box(phone, .072, .0095, .15, lam(0x15161a), 0, -.0055, 0);
   const scr = plane(phone, .064, .136, basic(0x56687c), 0, -.0108, 0, 0, Math.PI / 2); scr.rotation.x = Math.PI / 2; ARM.scr = scr;
-  phone.position.set(0, -.012, -.02); phone.visible = false; R_.hold.add(phone); ARM.phone = phone;
+  phone.position.set(0, -.034, -.03); phone.visible = false; R_.hold.add(phone); ARM.phone = phone;
   // ハンマー(握り込む)
   const ham = new T3.Group(); ham.visible = false;
   const hg = new T3.CylinderGeometry(.0145, .0125, .3, 8); const handle = new T3.Mesh(hg, lam(0x9a6a3c)); handle.position.y = .09; ham.add(handle);
@@ -1385,7 +1389,7 @@ function armUpdate(t){
     const hand = s === 1 && tool && r > 0;
     if(hand){
       let tp, tr, tc;
-      if(tool === 'phone'){ tp = [.14, -.15 + .03 * (1 - r), -.40]; tr = [.95, .38, Math.PI]; tc = .9; }
+      if(tool === 'phone'){ tp = [.14, -.15 + .03 * (1 - r), -.40]; tr = [.95, .38, Math.PI]; tc = .3; }   // 指は軽く曲げるだけ(深く曲げると画面を突き抜ける)
       else if(tool === 'hit'){ const h = ARM.hit; tp = [.10, -.04 - .16 * h, -.42 - .20 * h]; tr = [.95 - .75 * h, -.25, -.4 * (1 - h)]; tc = 1.0; }
       else { tp = [.03, -.19, -.40]; tr = [.35, -.12, -1.5]; tc = 1.25; }
       let w = r;
@@ -1517,6 +1521,7 @@ const ANOM = [
   { id: 'shadowBed', d: 1, black: true, at: [-.45, 1.3, .85], name: 'ベッドのすぐ横に、黒い人影が立っていた', on(){ R.sBed.visible = true; } },
   { id: 'shadowDesk', d: 1, black: true, at: AT.desk, name: '机の椅子に、黒い人影が座っていた', on(){ R.sDesk.visible = true; } },
   { id: 'shadowDoor', d: 1, black: true, at: AT.door, name: '開いたドアの前に、黒い人影が立っていた', on(){ R.door.rotation.y = -1.25; R.sDoor.visible = true; } },
+  { id: 'shadowCeiling', d: 2, black: true, at: [0, 2.2, -.2], name: '天井の電気に、黒い人影が張り付いていた', on(){ R.sCeil.visible = true; } },
   { id: 'shadowWindow', d: 1, black: true, at: AT.win, name: 'ベランダに、黒い人影が立っていた', on(){ R.sWin.visible = true; } },
   // --- 数字・文字
   { id: 'digitalBug', d: 3, at: AT.dclock, name: '枕元のデジタル時計の分が「61」になっていた', on(){} },
@@ -1700,7 +1705,7 @@ function resetExtras(){
   R.sBed.position.set(-.45, 0, .85); R.sBed.lookAt(BED_EYE.x, 0, BED_EYE.z);
   S.caught = false; S.stepT = 0; S.hbT = 0; S.chaseT = 0; S.redK = 0;
   [R.aPerson, R.aTrail, R.aHuge, R.aShoes, R.aBottles, R.aPapers].forEach(g => g.visible = false);
-  [R.sBed, R.sDesk, R.sDoor, R.sWin].forEach(o => o.visible = false);
+  [R.sBed, R.sDesk, R.sDoor, R.sWin, R.sCeil].forEach(o => o.visible = false);
   R.pillsMany.visible = false; R.blisters.visible = false; R.pillsFew.visible = true; R.bagBody.scale.set(1, 1, 1); R.bagBody.position.y = 0;
   R.ledMat.color.setHex(0x1a2630); R.ledGlow.visible = false;
   R.jShadow.visible = true; R.jShadow.position.x = 1.41;
@@ -1862,6 +1867,7 @@ function loop(now){
     R.flash.target.position.set(camera.position.x + dx * 5, camera.position.y + dy * 5, camera.position.z + dz * 5);
     R.flash.target.updateMatrixWorld();
   }
+  { const p = Math.pow((Math.sin(now / 1000 * 2.4) + 1) / 2, 1.5); blackMat.color.setRGB(.02 + .22 * p, .006, .01 + .03 * p); }   // 黒い人は、暗い赤へゆっくり色が脈打つ(闇に溶けないように)
   post.uniforms.uTime.value = (now / 1000) % 1000;
   renderer.setRenderTarget(rt); renderer.render(scene, camera);
   if(armUpdate(t)){ renderer.autoClear = false; renderer.clearDepth(); renderer.render(armScene, camera); renderer.autoClear = true; }

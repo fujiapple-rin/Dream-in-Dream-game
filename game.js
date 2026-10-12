@@ -2820,7 +2820,14 @@ async function trueFinish(){
   if(!snd.windTown) townSoundsStart();
   post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0; post.uniforms.uBright.value = 1;
   V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
-  await finishMorning();
+  // 白い光の中へ、ゆっくりフェードアウト → 白からゆっくりフェードインして、タイトル画面
+  stopSnd('windTown', 3.2); stopSnd('birds');
+  await fade(1, 3200, '#fff');
+  S.mode = 'title'; townTitle(true);
+  const tl = $('title'); tl.style.transition = 'none'; tl.style.opacity = 0; show('title', true); void tl.offsetWidth;
+  tl.style.transition = 'opacity 3200ms linear'; tl.style.opacity = 1;
+  await fade(0, 3200);
+  tl.style.transition = ''; tl.style.opacity = ''; setFade(0, '#000');
 }
 async function finishMorning(){
   setSkip(null);
@@ -2849,11 +2856,11 @@ function gameOver(reason, info, note){
 const CLEAR_KEY = 'dd_true_clear';
 const isCleared = () => { try{ return localStorage.getItem(CLEAR_KEY) === '1'; }catch(_){ return false; } };
 function markCleared(){ try{ localStorage.setItem(CLEAR_KEY, '1'); }catch(_){} document.body.classList.add('cleared'); }
-function townTitle(){   // 真エンディングをクリアした後は、タイトル画面の背景が、ラストの街並みになる
+function townTitle(keepFade){   // 真エンディングをクリアした後は、タイトル画面の背景が、ラストの街並みになる
   S.scene = 'town'; S.townIdle = true; TW.open = 1;
   V.pos.copy(TOWN_END.pos); V.yaw = 0; V.pitch = TOWN_END.pitch; V.roll = 0; V.fov = V.tfov = TOWN_END.fov; V.breathe = 0;
   post.uniforms.uBright.value = 1; post.uniforms.uNarrow.value = 0; post.uniforms.uBlur.value = 0;
-  setFade(0);
+  if(!keepFade) setFade(0);
 }
 function toTitle(){ return start(async () => { if(isCleared()) townTitle(); else setFade(1, '#000'); S.mode = 'title'; show('title', true); }); }
 $('title').addEventListener('click', () => { audioInit(); show('title', false); show('rules', true); });

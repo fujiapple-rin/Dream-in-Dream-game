@@ -1426,19 +1426,16 @@ const S = {
   isDream: false, active: new Set(), day: false, roundStart: 0, clockBase: 3600, lastSec: null,
   ticking: false, firstHint: true, humLevel: .14, beeping: false, death: null
 };
-let dragging = false, lx = 0, ly = 0, lockedOnce = false;
-glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; dragging = true; lx = e.clientX; ly = e.clientY; try{ glc.setPointerCapture(e.pointerId); }catch(_){} glc.classList.add('drag');
-  if(e.pointerType === 'mouse' && glc.requestPointerLock) try{ const r = glc.requestPointerLock(); if(r && r.catch) r.catch(() => {}); }catch(_){}   // 左ボタンを押している間は、カーソルを動かさない
-});
+let dragging = false, lx = 0, ly = 0;
+glc.addEventListener('contextmenu', e => e.preventDefault());   // 右クリックで視点移動(マウスは右ボタンだけ。左クリックでは動かない)
+glc.addEventListener('pointerdown', e => { if(!S.look || PAUSED) return; if(e.pointerType === 'mouse' && e.button !== 2) return; dragging = true; lx = e.clientX; ly = e.clientY; try{ glc.setPointerCapture(e.pointerId); }catch(_){} glc.classList.add('drag'); });
 glc.addEventListener('pointermove', e => {
   if(!dragging) return;
   const k = .0042 * (V.fov / 70);
-  const mx = e.pointerType === 'mouse' ? e.movementX : e.clientX - lx, my = e.pointerType === 'mouse' ? e.movementY : e.clientY - ly;
-  V.yaw -= mx * k; V.pitch = clamp(V.pitch - my * k, -1.45, 1.45);
+  V.yaw -= (e.clientX - lx) * k; V.pitch = clamp(V.pitch - (e.clientY - ly) * k, -1.45, 1.45);
   lx = e.clientX; ly = e.clientY;
 });
-const endDrag = () => { dragging = false; glc.classList.remove('drag'); if(document.pointerLockElement === glc) try{ document.exitPointerLock(); }catch(_){} };
-document.addEventListener('pointerlockchange', () => { if(dragging && !document.pointerLockElement && lockedOnce) endDrag(); lockedOnce = !!document.pointerLockElement; });
+const endDrag = () => { dragging = false; glc.classList.remove('drag'); };
 glc.addEventListener('pointerup', endDrag); glc.addEventListener('pointercancel', endDrag);
 glc.addEventListener('wheel', e => { if(!S.look) return; e.preventDefault(); V.tfov = clamp(V.tfov + e.deltaY * .03, 20, 70); $('bZoom').classList.toggle('act', V.tfov < 60); }, { passive: false });
 const keys = {};
@@ -2051,7 +2048,7 @@ async function memorizeReady(){
   setSkip(null);
   S.scene = 'room'; setFade(0); S.ticking = true;
   S.mode = 'memorize'; S.look = true; tools(true);
-  $('hint').innerHTML = (S.night > 1 ? '少し散らかってきた。<br>' : '') + '部屋の様子を、よく覚えておこう。<br>準備ができたら「眠る」。<br>ドラッグで見渡す / ' + (document.body.classList.contains('mobile') ? 'ズームボタンで拡大' : 'ホイールで拡大');
+  $('hint').innerHTML = (S.night > 1 ? '少し散らかってきた。<br>' : '') + '部屋の様子を、よく覚えておこう。<br>準備ができたら「眠る」。<br>' + (document.body.classList.contains('mobile') ? 'ドラッグで見渡す' : '右クリックを押しながら動かして見渡す') + ' / ' + (document.body.classList.contains('mobile') ? 'ズームボタンで拡大' : 'ホイールで拡大');
   $('hint').style.opacity = 1; S.firstHint = false;
   $('bWake').style.display = 'none';
   hud(true);

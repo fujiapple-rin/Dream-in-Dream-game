@@ -6,6 +6,7 @@
 
 - パソコン版: https://fujiapple-rin.github.io/Dream-in-Dream-game/
 - スマホ版(横画面): https://fujiapple-rin.github.io/Dream-in-Dream-game/mobile.html
+- itch.io: https://bucchigirin.itch.io/dream-in-dream(PCでもスマホでも遊べます。スマホで開くと、自動でスマホ版になります)
 
 インターネットに接続した状態で、ブラウザで開いてください。精神的に重い描写を含みます。
 
